@@ -1,0 +1,29 @@
+[project]
+name = "ai-pm-excalibur"
+version = "0.2.0"
+description = "AI PM EXCALIBUR: multi-agent system that turns freeform product context into a complete Agentic PRD via a six-agent pipeline (Intake → Discovery → Design → Develop → Deploy → PM). Single FastAPI app on :4500, chat-style UI, runs against Claude Max."
+requires-python = ">=3.10"
+dependencies = [
+    # Drives the agent loop via the bundled Claude Code CLI; inherits the user's
+    # `claude auth login` OAuth so calls bill against Claude Max, not API credits.
+    "claude-agent-sdk>=0.1.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "markdown>=3.7",
+    "python-dotenv>=1.0.1",
+    "sse-starlette>=2.1.0",
+]
+
+[project.scripts]
+ai-pm-excalibur = "server:main"
+ai-pm-excalibur-cli = "orchestrator:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["server", "orchestrator"]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "tools*", "framework*"]

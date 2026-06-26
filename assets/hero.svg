@@ -1,0 +1,79 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AI PM EXCALIBUR — Agentic PRD Generator">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a0e1f"/>
+      <stop offset="0.55" stop-color="#121a36"/>
+      <stop offset="1" stop-color="#1b1242"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.2" r="0.8">
+      <stop offset="0" stop-color="#5b7cff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#5b7cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#aab6e8"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe39a"/>
+      <stop offset="0.5" stop-color="#f5b942"/>
+      <stop offset="1" stop-color="#d98a1f"/>
+    </linearGradient>
+    <linearGradient id="blade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9fb4ff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#dce4ff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#9fb4ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="420" rx="20" fill="url(#bg)"/>
+  <rect width="1200" height="420" rx="20" fill="url(#glow)"/>
+
+  <!-- subtle blade accent -->
+  <g transform="rotate(-18 600 120)" opacity="0.8">
+    <rect x="250" y="116" width="700" height="3" rx="1.5" fill="url(#blade)"/>
+    <polygon points="950,117.5 980,113 980,122" fill="#dce4ff" opacity="0.8"/>
+    <rect x="232" y="110" width="20" height="16" rx="3" fill="url(#gold)" opacity="0.85"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="600" y="180" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="76" letter-spacing="6" fill="url(#steel)">AI PM <tspan fill="url(#gold)">EXCALIBUR</tspan></text>
+
+  <!-- tagline -->
+  <text x="600" y="226" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-weight="600" font-size="26" letter-spacing="3" fill="#aab6e8">AGENTIC PRD GENERATOR</text>
+
+  <!-- subtitle -->
+  <text x="600" y="266" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-weight="400" font-size="17" fill="#7e8bbf">Turn a paragraph of product context into a complete, stakeholder-ready PRD.</text>
+
+  <!-- pipeline chips -->
+  <g font-family="'Helvetica Neue',Arial,sans-serif" font-size="15" font-weight="600" text-anchor="middle">
+    <g>
+      <rect x="118" y="318" width="138" height="44" rx="22" fill="#1c2547" stroke="#39427a" stroke-width="1"/>
+      <text x="187" y="345" fill="#cdd6ff">Intake</text>
+    </g>
+    <text x="272" y="345" fill="#5b669c">→</text>
+    <g>
+      <rect x="288" y="318" width="150" height="44" rx="22" fill="#1c2547" stroke="#39427a" stroke-width="1"/>
+      <text x="363" y="345" fill="#cdd6ff">Discovery</text>
+    </g>
+    <text x="454" y="345" fill="#5b669c">→</text>
+    <g>
+      <rect x="470" y="318" width="130" height="44" rx="22" fill="#1c2547" stroke="#39427a" stroke-width="1"/>
+      <text x="535" y="345" fill="#cdd6ff">Design</text>
+    </g>
+    <text x="616" y="345" fill="#5b669c">→</text>
+    <g>
+      <rect x="632" y="318" width="138" height="44" rx="22" fill="#1c2547" stroke="#39427a" stroke-width="1"/>
+      <text x="701" y="345" fill="#cdd6ff">Develop</text>
+    </g>
+    <text x="786" y="345" fill="#5b669c">→</text>
+    <g>
+      <rect x="802" y="318" width="130" height="44" rx="22" fill="#1c2547" stroke="#39427a" stroke-width="1"/>
+      <text x="867" y="345" fill="#cdd6ff">Deploy</text>
+    </g>
+    <text x="948" y="345" fill="#5b669c">→</text>
+    <g>
+      <rect x="964" y="318" width="118" height="44" rx="22" fill="#23306a" stroke="#f5b942" stroke-width="1.4"/>
+      <text x="1023" y="345" fill="#ffe39a">PM Review</text>
+    </g>
+  </g>
+</svg>

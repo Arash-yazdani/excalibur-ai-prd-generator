@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI PM EXCALIBUR</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='50%25' y='42' text-anchor='middle' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%23e2e8f0'%3EM%3C/text%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy-950:#0f172a; --navy-900:#172554; --navy-700:#1e40af;
+  --slate-800:#1e293b; --slate-700:#334155; --slate-600:#475569; --slate-500:#64748b;
+  --slate-400:#94a3b8; --slate-300:#cbd5e1; --slate-200:#e5e7eb; --slate-100:#f1f5f9; --slate-50:#f8fafc;
+  --emerald-bg:#ecfdf5; --emerald-text:#065f46; --emerald-border:#a7f3d0;
+  --amber-bg:#fffbeb; --amber-text:#92400e; --amber-border:#fde68a;
+  --ruby-bg:#fef2f2; --ruby-text:#991b1b; --ruby-border:#fecaca;
+  --info-bg:#eff6ff; --info-text:#1e40af; --info-border:#bfdbfe;
+  --intake-bg:#fefce8;
+  --font-display:'Playfair Display',Georgia,serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+  --font-mono:'DM Mono','Courier New',monospace;
+}
+html{font-size:16px}
+body{font-family:var(--font-body);background:var(--slate-100);color:var(--slate-800);min-height:100vh}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+input,textarea,select{font-family:inherit}
+textarea{resize:vertical}
+
+/* Top bar */
+.app-header{background:var(--navy-950);color:#fff;padding:24px 32px;display:flex;justify-content:space-between;align-items:center}
+.brand{display:flex;flex-direction:column}
+.brand-title{font-family:var(--font-display);font-size:26px;font-weight:800;letter-spacing:-0.02em;line-height:1}
+.brand-sub{font-size:12px;color:var(--slate-400);font-style:italic;margin-top:4px}
+.header-actions{display:flex;gap:8px;align-items:center}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid transparent;transition:all 0.15s}
+.btn-ghost{background:rgba(255,255,255,0.06);color:#fff;border-color:rgba(255,255,255,0.12)}
+.btn-ghost:hover{background:rgba(255,255,255,0.14)}
+.btn-primary{background:var(--navy-700);color:#fff;border-color:var(--navy-700)}
+.btn-primary:hover{background:#2563eb}
+.btn-danger{background:rgba(239,68,68,0.14);color:#fca5a5;border-color:rgba(239,68,68,0.25)}
+.btn-danger:hover{background:rgba(239,68,68,0.28)}
+.btn-warn{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.btn-warn:hover{background:#fde68a}
+
+.container{max-width:1100px;margin:0 auto;padding:32px}
+
+/* Projects screen */
+.projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:24px}
+.project-card{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:20px;cursor:pointer;transition:all 0.15s}
+.project-card:hover{border-color:var(--navy-700);box-shadow:0 2px 12px rgba(0,0,0,0.06);transform:translateY(-1px)}
+.project-card-name{font-size:17px;font-weight:600;margin-bottom:4px;color:var(--slate-800)}
+.project-card-meta{font-size:12px;color:var(--slate-500);margin-bottom:12px}
+.project-card-stats{display:flex;align-items:center;gap:10px}
+.bar{flex:1;height:5px;background:var(--slate-200);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;background:var(--navy-700);transition:width 0.3s}
+.project-card-pct{font-size:12px;font-family:var(--font-mono);color:var(--slate-500);font-weight:500;min-width:36px;text-align:right}
+.project-card-status{margin-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.badge{display:inline-block;padding:3px 9px;border-radius:5px;font-size:10px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;border:1px solid}
+.badge-idle{background:var(--slate-50);color:var(--slate-600);border-color:var(--slate-200)}
+.badge-running{background:var(--amber-bg);color:var(--amber-text);border-color:var(--amber-border)}
+.badge-paused{background:var(--info-bg);color:var(--info-text);border-color:var(--info-border)}
+.badge-complete{background:var(--emerald-bg);color:var(--emerald-text);border-color:var(--emerald-border)}
+.badge-errored{background:var(--ruby-bg);color:var(--ruby-text);border-color:var(--ruby-border)}
+.badge-stale{background:var(--slate-100);color:var(--slate-600);border-color:var(--slate-300)}
+
+.new-project-card{background:transparent;border:2px dashed var(--slate-300);border-radius:12px;padding:20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:140px;color:var(--slate-500);transition:all 0.15s}
+.new-project-card:hover{border-color:var(--navy-700);color:var(--navy-700);background:#fff}
+.new-project-card .plus{font-size:32px;font-weight:300;margin-bottom:4px}
+.new-project-card .label{font-size:13px;font-weight:500}
+
+.empty{text-align:center;padding:60px 20px;color:var(--slate-500)}
+.empty h2{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--slate-700);margin-bottom:8px}
+.empty p{margin-bottom:24px}
+
+/* Project view */
+.project-header{background:#fff;border-bottom:1px solid var(--slate-200);padding:24px 32px}
+.project-header-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}
+.project-name-input{font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--slate-800);border:none;outline:none;background:transparent;width:100%;padding:0}
+.project-name-input:focus{color:var(--navy-700)}
+.meta-row{display:flex;gap:14px;flex-wrap:wrap}
+.meta-field{display:flex;flex-direction:column;gap:3px;min-width:140px}
+.meta-label{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--slate-500)}
+.meta-input{padding:6px 10px;border-radius:6px;border:1px solid var(--slate-200);background:var(--slate-50);font-size:13px;color:var(--slate-800);outline:none;transition:border-color 0.15s}
+.meta-input:focus{border-color:var(--navy-700);background:#fff}
+.meta-input:disabled{background:var(--slate-100);color:var(--slate-500);cursor:not-allowed}
+.read-only-banner{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber-text);padding:10px 16px;border-radius:8px;font-size:13px;margin-top:12px;display:flex;align-items:center;gap:8px}
+
+/* Intake state */
+.intake-area{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:28px;margin-top:24px}
+.intake-area h2{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--slate-800);margin-bottom:6px}
+.intake-area .hint{font-size:13px;color:var(--slate-500);margin-bottom:18px;line-height:1.5}
+.intake-textarea{width:100%;padding:16px 18px;border-radius:10px;border:1px solid var(--slate-200);background:var(--intake-bg);font-size:14px;line-height:1.6;color:var(--slate-800);outline:none;min-height:240px;font-family:var(--font-body)}
+.intake-textarea:focus{border-color:var(--navy-700);background:#fff}
+.intake-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
+.intake-help{margin-left:auto;font-size:12px;color:var(--slate-500);font-style:italic}
+
+/* Running state */
+.running-area{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:24px;margin-top:24px}
+.run-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.run-status{display:flex;flex-direction:column;gap:4px}
+.run-status-line{font-size:15px;font-weight:600;color:var(--slate-800)}
+.run-status-sub{font-size:12px;color:var(--slate-500);font-family:var(--font-mono)}
+.run-actions{display:flex;gap:8px}
+.run-progress{margin:8px 0 16px}
+.run-progress .bar{height:6px}
+.run-log{background:#0f172a;color:#cbd5e1;padding:14px 16px;border-radius:10px;height:380px;overflow:auto;font-family:var(--font-mono);font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.run-log .log-line{padding:1px 0}
+.run-log .log-line.tool{color:#a7f3d0}
+.run-log .log-line.agent{color:#bfdbfe;font-weight:600}
+.run-log .log-line.error{color:#fca5a5}
+
+/* Complete state */
+.complete-area{margin-top:24px}
+.complete-header{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:20px 24px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.complete-header h2{font-family:var(--font-display);font-size:22px;color:var(--slate-800);font-weight:700}
+.complete-summary{font-size:13px;color:var(--slate-500);margin-top:2px}
+.tabs{display:flex;gap:4px;background:var(--slate-50);padding:4px;border-radius:10px;margin-bottom:16px}
+.tab{padding:8px 14px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate-600);cursor:pointer;transition:all 0.15s}
+.tab:hover{color:var(--slate-800)}
+.tab.active{background:#fff;color:var(--navy-700);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.artifact-view{background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:36px 48px;line-height:1.7}
+.artifact-view h1{font-family:var(--font-display);font-size:30px;margin-bottom:16px;color:var(--slate-800)}
+.artifact-view h2{font-family:var(--font-display);font-size:22px;margin-top:28px;margin-bottom:10px;color:var(--slate-800);border-bottom:1px solid var(--slate-200);padding-bottom:6px}
+.artifact-view h3{font-size:17px;margin-top:18px;margin-bottom:8px;color:var(--slate-700);font-weight:600}
+.artifact-view p{margin-bottom:12px;color:var(--slate-700)}
+.artifact-view ul,.artifact-view ol{margin:8px 0 12px 24px;color:var(--slate-700)}
+.artifact-view li{margin-bottom:4px}
+.artifact-view code{background:var(--slate-100);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:13px;color:var(--slate-800)}
+.artifact-view pre{background:var(--slate-50);padding:14px 18px;border-radius:8px;overflow-x:auto;margin:12px 0;border:1px solid var(--slate-200)}
+.artifact-view pre code{background:none;padding:0}
+.artifact-view table{border-collapse:collapse;margin:12px 0;font-size:13px;width:100%}
+.artifact-view th,.artifact-view td{border:1px solid var(--slate-200);padding:8px 12px;text-align:left}
+.artifact-view th{background:var(--slate-50);font-weight:600}
+.artifact-view blockquote{border-left:4px solid var(--navy-700);padding-left:14px;margin:12px 0;color:var(--slate-600);font-style:italic}
+.artifact-view hr{border:none;border-top:1px solid var(--slate-200);margin:24px 0}
+
+/* Loading */
+.loading{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--slate-500);font-size:14px;font-style:italic}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#fff;border-radius:14px;padding:28px;max-width:440px;width:90%;box-shadow:0 20px 50px rgba(0,0,0,0.3)}
+.modal h3{font-family:var(--font-display);font-size:22px;font-weight:700;margin-bottom:8px}
+.modal p{color:var(--slate-600);font-size:14px;margin-bottom:18px}
+.modal input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--slate-200);font-size:15px;outline:none}
+.modal input:focus{border-color:var(--navy-700)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+
+.errortext{color:var(--ruby-text);font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Loading…</div></div>
+
+<script>
+"use strict";
+
+/* ============================================================================
+ * State + small helpers
+ * ============================================================================ */
+
+const S = {
+  screen: "projects",       // "projects" | "project"
+  projects: [],
+  pid: null,
+  project: null,            // full project JSON when in project view
+  framework: null,          // {phases, sections}
+  status: null,             // /api/projects/{pid}/status response
+  logLines: [],
+  eventSource: null,
+  view: "auto",             // "auto" | "intake" | "running" | "complete" — auto picks based on status + content
+  artifactTab: "final-prd", // when in complete view
+  artifactCache: {},        // {name: html}
+  modal: null,              // for "new project" prompt
+  saveTimer: null,
+};
+
+const e = (s) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: {"Content-Type": "application/json"},
+    ...opts,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`${res.status} ${res.statusText}: ${t}`);
+  }
+  const ct = res.headers.get("content-type") || "";
+  return ct.includes("application/json") ? res.json() : res.text();
+}
+
+function badgeFor(state) {
+  return `<span class="badge badge-${state}">${state}</span>`;
+}
+
+function intakeFilled(project) {
+  return !!(project?.meta?.intake_text || "").trim();
+}
+
+function q1q7Filled(project) {
+  if (!project?.data) return false;
+  for (let i = 1; i <= 7; i++) {
+    const cell = project.data[`q${i}`] || {};
+    if (cell.status !== "complete" || !(cell.response || "").trim()) return false;
+  }
+  return true;
+}
+
+function pickView() {
+  if (!S.project) return "intake";
+  if (S.status?.state === "running" || S.status?.state === "paused") return "running";
+  // complete OR has final-prd artifact
+  if (S.status?.state === "complete") return "complete";
+  // default to intake if there's no run yet
+  return "intake";
+}
+
+/* ============================================================================
+ * Bootstrap
+ * ============================================================================ */
+
+async function boot() {
+  try {
+    S.framework = await api("/api/framework");
+    await refreshProjects();
+    render();
+  } catch (err) {
+    document.getElementById("app").innerHTML =
+      `<div class="loading">Could not reach the server. Is it running on the expected port?<br><br>${e(err.message)}</div>`;
+  }
+}
+
+async function refreshProjects() {
+  S.projects = await api("/api/projects");
+}
+
+/* ============================================================================
+ * Views
+ * ============================================================================ */
+
+function render() {
+  document.getElementById("app").innerHTML = renderHeader() + renderBody();
+  if (S.modal) renderModal();
+  attachHandlers();
+}
+
+function renderHeader() {
+  return `
+    <div class="app-header">
+      <div class="brand">
+        <div class="brand-title">AI PM EXCALIBUR</div>
+        <div class="brand-sub">Agentic PRD Generator</div>
+      </div>
+      <div class="header-actions">
+        ${S.screen === "project"
+          ? `<button class="btn btn-ghost" onclick="window._back()">← All projects</button>`
+          : `<a class="btn btn-ghost" href="/legacy-form" target="_blank" title="Direct question-by-question editor">Legacy form ↗</a>
+             <button class="btn btn-primary" onclick="window._newProject()">+ New project</button>`}
+      </div>
+    </div>
+  `;
+}
+
+function renderBody() {
+  if (S.screen === "projects") return renderProjects();
+  return renderProject();
+}
+
+function renderProjects() {
+  if (!S.projects.length) {
+    return `<div class="container"><div class="empty">
+      <h2>No projects yet</h2>
+      <p>Start by creating one. You'll paste freeform context about your AI product;<br>
+      the agents do the rest.</p>
+      <button class="btn btn-primary" onclick="window._newProject()">+ New project</button>
+    </div></div>`;
+  }
+  const cards = S.projects.map(p => {
+    const m = p.meta || {};
+    const st = p.stats || {pct: 0};
+    const status = p._status?.state || "idle";
+    return `
+      <div class="project-card" onclick="window._open('${e(p.id)}')">
+        <div class="project-card-name">${e(m.name || p.id)}</div>
+        <div class="project-card-meta">${e(m.owner || "no owner")} · ${e(m.industry || "no industry")} · ${e(m.date || "")}</div>
+        <div class="project-card-stats">
+          <div class="bar"><div class="bar-fill" style="width:${st.pct}%"></div></div>
+          <div class="project-card-pct">${st.pct}%</div>
+        </div>
+        <div class="project-card-status">
+          ${badgeFor(status)}
+          <span style="color:var(--slate-400)">${st.completed}/${st.total} answered</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+  return `
+    <div class="container">
+      <div class="projects-grid">
+        ${cards}
+        <div class="new-project-card" onclick="window._newProject()">
+          <div class="plus">+</div>
+          <div class="label">New project</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderProject() {
+  const p = S.project;
+  if (!p) return `<div class="loading">Loading project…</div>`;
+  const view = S.view === "auto" ? pickView() : S.view;
+  const readonly = (S.status?.state === "running");
+  const m = p.meta || {};
+  return `
+    <div class="project-header">
+      <div class="project-header-top">
+        <input class="project-name-input" value="${e(m.name || S.pid)}" oninput="window._meta('name', this.value)" ${readonly ? "disabled" : ""}>
+        ${badgeFor(S.status?.state || "idle")}
+      </div>
+      <div class="meta-row">
+        <div class="meta-field"><label class="meta-label">Owner</label><input class="meta-input" value="${e(m.owner || "")}" oninput="window._meta('owner', this.value)" placeholder="Your name" ${readonly ? "disabled" : ""}></div>
+        <div class="meta-field"><label class="meta-label">Industry</label><input class="meta-input" value="${e(m.industry || "")}" oninput="window._meta('industry', this.value)" placeholder="e.g., Healthcare" ${readonly ? "disabled" : ""}></div>
+        <div class="meta-field"><label class="meta-label">Date</label><input class="meta-input" value="${e(m.date || "")}" oninput="window._meta('date', this.value)" placeholder="e.g., Q2 2026" ${readonly ? "disabled" : ""}></div>
+      </div>
+      ${readonly ? `<div class="read-only-banner">⏸ Pipeline running — meta + intake locked. Pause or cancel to edit.</div>` : ""}
+      ${S.status?.last_error ? `<div class="read-only-banner" style="background:var(--ruby-bg);border-color:var(--ruby-border);color:var(--ruby-text)">⚠ ${e(S.status.last_error)}<div style="margin-top:8px;font-size:12px;opacity:0.9">Fix: in Terminal.app run <code>claude auth login</code> or <code>claude setup-token</code> with your Claude Max account (not an API key), then restart AI PM EXCALIBUR.</div></div>` : ""}
+    </div>
+    <div class="container">
+      ${renderViewTabs(view)}
+      ${view === "intake" ? renderIntake(p, readonly) : ""}
+      ${view === "running" ? renderRunning(p) : ""}
+      ${view === "complete" ? renderComplete(p) : ""}
+    </div>
+  `;
+}
+
+function renderViewTabs(view) {
+  const tabs = [];
+  if (S.status?.state === "complete" || pickView() === "complete") tabs.push(["complete", "Final"]);
+  if (S.status?.state === "running" || S.status?.state === "paused") tabs.push(["running", "Live"]);
+  if (q1q7Filled(S.project) || intakeFilled(S.project)) tabs.push(["intake", "Intake"]);
+  if (tabs.length <= 1) return "";
+  const items = tabs.map(([id, label]) =>
+    `<div class="tab ${id === view ? "active" : ""}" onclick="window._view('${id}')">${label}</div>`
+  ).join("");
+  return `<div class="tabs">${items}</div>`;
+}
+
+function renderIntake(p, readonly) {
+  const txt = (p.meta?.intake_text || "");
+  const hasIntake = !!txt.trim();
+  const hasQ1Q7 = q1q7Filled(p);
+  return `
+    <div class="intake-area">
+      <h2>Tell me about your AI product</h2>
+      <p class="hint">Paste a deck, a one-pager, an email thread, a Slack rant, a transcript — whatever you have. The Intake Agent reads this and structures it into the seven Discovery questions before the rest of the pipeline kicks in.</p>
+      <textarea class="intake-textarea" ${readonly ? "disabled" : ""} placeholder="Drop your context here…" oninput="window._intake(this.value)">${e(txt)}</textarea>
+      <div class="intake-actions">
+        <button class="btn btn-ghost" onclick="window._runIntakeOnly()" ${(!hasIntake || readonly) ? "disabled style='opacity:0.5;cursor:not-allowed'" : ""}>▶ Generate q1–q7 only</button>
+        <button class="btn btn-primary" onclick="window._runFull()" ${(!hasIntake && !hasQ1Q7) || readonly ? "disabled style='opacity:0.5;cursor:not-allowed'" : ""}>▶▶ Run full pipeline</button>
+        <span class="intake-help">${hasIntake ? `${txt.length.toLocaleString()} chars` : "Empty — nothing to run yet"}</span>
+      </div>
+      ${hasQ1Q7 ? `
+        <div style="margin-top:18px;padding:14px 16px;background:var(--emerald-bg);border:1px solid var(--emerald-border);border-radius:8px;font-size:13px;color:var(--emerald-text)">
+          ✓ q1–q7 are already filled. The intake agent will skip; the consultants run from your existing answers.
+          <a href="/legacy-form" target="_blank" style="margin-left:6px">View answers →</a>
+        </div>` : ""}
+    </div>
+  `;
+}
+
+function renderRunning(p) {
+  const st = S.status || {};
+  const lines = S.logLines.length ? S.logLines.map(formatLogLine).join("") : `<div class="log-line" style="opacity:0.5">waiting for first output…</div>`;
+  const paused = st.state === "paused";
+  return `
+    <div class="running-area">
+      <div class="run-header">
+        <div class="run-status">
+          <div class="run-status-line">${paused ? "⏸ Paused" : "▶ Running"}${st.last_agent ? ` · ${e(st.last_agent)} agent` : ""}</div>
+          <div class="run-status-sub">${st.last_ts ? new Date(st.last_ts).toLocaleString() : ""}</div>
+        </div>
+        <div class="run-actions">
+          ${paused
+            ? `<button class="btn btn-primary" onclick="window._resume()">▶ Resume</button>`
+            : `<button class="btn btn-warn" onclick="window._pause()">⏸ Pause</button>`}
+          <button class="btn btn-danger" onclick="window._cancel()">✕ Cancel</button>
+        </div>
+      </div>
+      <div class="run-log" id="run-log">${lines}</div>
+    </div>
+  `;
+}
+
+function formatLogLine(line) {
+  const cls = /^\s*→\s*tool:/.test(line) ? "tool" :
+              /^\s*\[\w+\]/.test(line) ? "agent" :
+              /error|traceback|exception/i.test(line) ? "error" : "";
+  return `<div class="log-line ${cls}">${e(line)}</div>`;
+}
+
+function renderComplete(p) {
+  const tabs = [
+    ["final-prd", "📄 Final PRD"],
+    ["design-artifact", "🎨 Design"],
+    ["develop-artifact", "⚙ Develop"],
+  ];
+  const tabHtml = tabs.map(([id, label]) =>
+    `<div class="tab ${id === S.artifactTab ? "active" : ""}" onclick="window._artifact('${id}')">${label}</div>`
+  ).join("");
+  const html = S.artifactCache[S.artifactTab] || "<div class='loading'>Loading artifact…</div>";
+  return `
+    <div class="complete-area">
+      <div class="complete-header">
+        <div>
+          <h2>Pipeline complete</h2>
+          <div class="complete-summary">All six agents finished. Sense-check the final PRD below.</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="window._rerun()">▶ Re-run</button>
+          <a class="btn btn-ghost" href="/legacy-form" target="_blank">Edit answers ↗</a>
+        </div>
+      </div>
+      <div class="tabs">${tabHtml}</div>
+      <div class="artifact-view" id="artifact-view">${html}</div>
+    </div>
+  `;
+}
+
+function renderModal() {
+  if (!S.modal) return;
+  const m = S.modal;
+  const root = document.createElement("div");
+  root.id = "modal-root";
+  root.innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this)window._closeModal()">
+      <div class="modal">
+        <h3>${e(m.title)}</h3>
+        <p>${e(m.body)}</p>
+        <input id="modal-input" placeholder="${e(m.placeholder || "")}" value="${e(m.value || "")}" autofocus>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="window._closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="window._submitModal()">${e(m.confirmLabel || "OK")}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(root);
+  setTimeout(() => document.getElementById("modal-input")?.focus(), 50);
+}
+
+/* ============================================================================
+ * Handlers
+ * ============================================================================ */
+
+function attachHandlers() {
+  // (most are inline onclick; nothing extra needed for now)
+}
+
+window._back = () => {
+  closeStream();
+  S.screen = "projects"; S.pid = null; S.project = null; S.status = null;
+  S.logLines = []; S.view = "auto"; S.artifactCache = {};
+  refreshProjects().then(render);
+};
+
+window._newProject = () => {
+  S.modal = {
+    title: "New project",
+    body: "Name your project. The filename comes from this.",
+    placeholder: "e.g., Family Check v3",
+    value: "",
+    confirmLabel: "Create",
+    onSubmit: async (name) => {
+      if (!name.trim()) return;
+      try {
+        const res = await api("/api/projects", {method: "POST", body: JSON.stringify({name})});
+        await openProject(res.id);
+      } catch (err) {
+        alert("Could not create: " + err.message);
+      }
+    },
+  };
+  render();
+};
+
+window._closeModal = () => { S.modal = null; document.getElementById("modal-root")?.remove(); };
+window._submitModal = () => {
+  const v = document.getElementById("modal-input")?.value || "";
+  const cb = S.modal?.onSubmit;
+  S.modal = null;
+  document.getElementById("modal-root")?.remove();
+  if (cb) cb(v);
+};
+
+window._open = (pid) => openProject(pid);
+
+async function openProject(pid) {
+  closeStream();
+  S.screen = "project"; S.pid = pid;
+  S.logLines = []; S.view = "auto"; S.artifactCache = {};
+  render();
+  S.project = await api(`/api/projects/${pid}`);
+  S.status = await api(`/api/projects/${pid}/status`);
+  if (S.status.state === "running") {
+    openStream(pid);
+  }
+  if (S.status.state === "complete") {
+    loadArtifact("final-prd");
+  }
+  render();
+}
+
+window._meta = (field, value) => {
+  if (!S.project) return;
+  S.project.meta = S.project.meta || {};
+  S.project.meta[field] = value;
+  scheduleSave();
+};
+
+window._intake = (text) => {
+  if (!S.project) return;
+  S.project.meta = S.project.meta || {};
+  S.project.meta.intake_text = text;
+  // re-render only the actions row to flip enabled/disabled state & char count
+  const actions = document.querySelector(".intake-actions");
+  if (actions) {
+    const hasIntake = !!text.trim();
+    const hasQ1Q7 = q1q7Filled(S.project);
+    actions.querySelector(".btn-ghost").disabled = !hasIntake;
+    actions.querySelector(".btn-primary").disabled = !hasIntake && !hasQ1Q7;
+    actions.querySelector(".intake-help").textContent = hasIntake ? `${text.length.toLocaleString()} chars` : "Empty — nothing to run yet";
+  }
+  scheduleSave();
+};
+
+function scheduleSave() {
+  if (S.saveTimer) clearTimeout(S.saveTimer);
+  S.saveTimer = setTimeout(saveMetaPatch, 600);
+}
+
+async function saveMetaPatch() {
+  if (!S.pid || !S.project) return;
+  try {
+    await api(`/api/projects/${S.pid}`, {
+      method: "PATCH",
+      body: JSON.stringify({meta: S.project.meta}),
+    });
+  } catch (err) {
+    if (err.message.includes("409")) return; // running, ignore
+    console.error("save failed", err);
+  }
+}
+
+window._view = (v) => { S.view = v; if (v === "complete") loadArtifact(S.artifactTab); render(); };
+
+window._runIntakeOnly = async () => {
+  await flushSave();
+  try {
+    // Use orchestrator's `intake` subcommand via the same /run endpoint plus a flag.
+    // For simplicity, we just kick off the full run — intake is the first agent
+    // and will populate q1-q7. Then the user can pause if they want to review.
+    // Better: we add a dedicated endpoint. For now, re-use /run.
+    const res = await api(`/api/projects/${S.pid}/run`, {method: "POST"});
+    S.status = res.status;
+    S.logLines = [];
+    openStream(S.pid);
+    S.view = "running";
+    render();
+  } catch (err) {
+    alert("Could not start: " + err.message);
+  }
+};
+
+window._runFull = async () => {
+  await flushSave();
+  try {
+    const res = await api(`/api/projects/${S.pid}/run`, {method: "POST"});
+    S.status = res.status;
+    S.logLines = [];
+    openStream(S.pid);
+    S.view = "running";
+    render();
+  } catch (err) {
+    alert("Could not start: " + err.message);
+  }
+};
+
+window._pause = async () => {
+  try { await api(`/api/projects/${S.pid}/pause`, {method: "POST"}); }
+  catch (err) { alert("Pause failed: " + err.message); }
+};
+
+window._resume = async () => {
+  try {
+    const res = await api(`/api/projects/${S.pid}/resume`, {method: "POST"});
+    S.status = res.status;
+    openStream(S.pid);
+    render();
+  } catch (err) { alert("Resume failed: " + err.message); }
+};
+
+window._cancel = async () => {
+  if (!confirm("Cancel the running pipeline? In-flight question writes may be lost.")) return;
+  try {
+    await api(`/api/projects/${S.pid}/cancel`, {method: "POST"});
+    closeStream();
+    S.status = await api(`/api/projects/${S.pid}/status`);
+    render();
+  } catch (err) { alert("Cancel failed: " + err.message); }
+};
+
+window._rerun = () => {
+  if (!confirm("Re-run the entire pipeline? This will overwrite agent-written answers (q8–q57); your meta + intake_text and q1–q7 are preserved.")) return;
+  // Wipe q8-q57 then start
+  const data = S.project.data || {};
+  for (let i = 8; i <= 57; i++) {
+    data[`q${i}`] = {response: "", status: "not-started"};
+  }
+  api(`/api/projects/${S.pid}`, {
+    method: "PUT",
+    body: JSON.stringify({meta: S.project.meta, data}),
+  }).then(async () => {
+    const res = await api(`/api/projects/${S.pid}/run`, {method: "POST"});
+    S.status = res.status;
+    S.logLines = []; S.view = "running"; S.artifactCache = {};
+    openStream(S.pid);
+    render();
+  });
+};
+
+window._artifact = (name) => {
+  S.artifactTab = name;
+  loadArtifact(name);
+  render();
+};
+
+async function loadArtifact(name) {
+  if (S.artifactCache[name]) return;
+  try {
+    const res = await api(`/api/projects/${S.pid}/artifacts/${name}`);
+    S.artifactCache[name] = res.html;
+    if (S.view === "complete" || pickView() === "complete") {
+      const view = document.getElementById("artifact-view");
+      if (view) view.innerHTML = res.html;
+    }
+  } catch (err) {
+    S.artifactCache[name] = `<div class="errortext">Artifact not available: ${e(err.message)}</div>`;
+  }
+}
+
+async function flushSave() {
+  if (S.saveTimer) { clearTimeout(S.saveTimer); S.saveTimer = null; }
+  await saveMetaPatch();
+}
+
+/* ============================================================================
+ * SSE streaming
+ * ============================================================================ */
+
+function openStream(pid) {
+  closeStream();
+  const es = new EventSource(`/api/projects/${pid}/stream`);
+  S.eventSource = es;
+  es.addEventListener("log", (ev) => {
+    S.logLines.push(ev.data);
+    appendLogLine(ev.data);
+  });
+  es.addEventListener("status", async (ev) => {
+    try { S.status = JSON.parse(ev.data); } catch {}
+    closeStream();
+    // Refresh project + artifacts when run ends
+    S.project = await api(`/api/projects/${pid}`);
+    if (S.status?.state === "complete") {
+      S.artifactCache = {};
+      loadArtifact("final-prd");
+      S.view = "complete";
+    }
+    render();
+  });
+  es.onerror = () => {
+    // Browser auto-reconnects; we just note it.
+  };
+}
+
+function closeStream() {
+  if (S.eventSource) {
+    try { S.eventSource.close(); } catch {}
+    S.eventSource = null;
+  }
+}
+
+function appendLogLine(line) {
+  const log = document.getElementById("run-log");
+  if (!log) return;
+  // strip the "(filtered)" placeholder if present
+  const placeholder = log.querySelector(".log-line[style*='opacity']");
+  if (placeholder) placeholder.remove();
+  const div = document.createElement("div");
+  const cls = /^\s*→\s*tool:/.test(line) ? "tool" :
+              /^\s*\[\w+\]/.test(line) ? "agent" :
+              /error|traceback|exception/i.test(line) ? "error" : "";
+  div.className = `log-line ${cls}`;
+  div.textContent = line;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ============================================================================
+ * Boot
+ * ============================================================================ */
+
+boot();
+</script>
+</body>
+</html>

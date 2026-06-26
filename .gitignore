@@ -1,0 +1,25 @@
+# Secrets / local env
+.env
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# OS
+.DS_Store
+
+# Generated run data (per install — never commit)
+runs.jsonl
+runs/*/
+handoffs/*/
+artifacts/*/
+
+# User project files are private data
+projects/*.json
+
+# Keep the empty dirs and the tracked cross-project lessons
+!projects/.gitkeep
+!memory/*.md
