@@ -2,12 +2,11 @@
 """AI PM EXCALIBUR — unified FastAPI server.
 
 One process, one port (default :4500), three responsibilities:
-  1. Project CRUD (replaces the legacy form tool's stdlib server)
-  2. Run dashboard (replaces the dashboard.py from the agentic processor)
+  1. Project CRUD
+  2. Run dashboard
   3. Pipeline kickoff with SSE-streamed logs + pause/resume/cancel
 
-The browser hits a single SPA at `/` (the chat UI), with `/legacy-form`
-as a fallback for direct question editing when needed.
+The browser hits a single chat-style SPA at `/`.
 
 Run:
   python server.py            # http://localhost:4500
@@ -34,30 +33,21 @@ from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 load_dotenv(Path(__file__).parent / ".env", override=True)
-# Force OAuth (Claude Max) over API key, and strip Claude Desktop's host-IPC
-# auth vars. See orchestrator.py for the full rationale; the short version:
-#   - ANTHROPIC_API_KEY (even empty) makes the CLI prefer API-key auth
-#   - CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST + friends make it expect IPC auth
-#     from a host that isn't listening when we're spawned standalone → 401
-# Stripping them here AND in orchestrator.py is belt-and-suspenders: the
-# server's env is inherited by orchestrator subprocesses, but orchestrator
-# also strips defensively in case it's launched from a different shell.
+
+# Force Claude Max OAuth before anything spawns the CLI: strip ANTHROPIC_API_KEY
+# (which makes the CLI prefer API-key auth) and the CLAUDE_CODE_* host-IPC vars
+# (which make it expect IPC auth from a host that isn't listening → 401). The var
+# list is the single source of truth in tools/auth_preflight.
 # Prerequisite: user has run `claude setup-token` (one-time persistent OAuth).
-for _var in (
-    "ANTHROPIC_API_KEY",
-    "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST",
-    "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH",
-    "CLAUDE_CODE_ENTRYPOINT",
-    "CLAUDECODE",
-):
-    os.environ.pop(_var, None)
+from tools.auth_preflight import check_auth_ready, strip_host_ipc_env  # noqa: E402
+
+strip_host_ipc_env()
 
 from framework import load_framework  # noqa: E402
 from tools import artifacts as art_tools  # noqa: E402
 from tools import handoff as handoff_tools  # noqa: E402
 from tools import question_io as qio  # noqa: E402
 from tools import runs as runs_log  # noqa: E402
-from tools.auth_preflight import check_auth_ready  # noqa: E402
 from tools.paths import (  # noqa: E402
     ARTIFACTS_DIR,
     BASE_DIR,
@@ -261,17 +251,6 @@ async def root() -> FileResponse:
             status_code=503,
         )
     return FileResponse(index)
-
-
-@app.get("/legacy-form", response_class=HTMLResponse)
-async def legacy_form() -> FileResponse:
-    """Fallback: the original form tool form for direct question-by-question editing.
-    Use this when the UI doesn't surface the affordance you need
-    (e.g. editing one specific answer in isolation)."""
-    legacy = STATIC_DIR / "legacy-form.html"
-    if not legacy.exists():
-        raise HTTPException(404, "Legacy form not preserved")
-    return FileResponse(legacy)
 
 
 # ----------------------------------------------------------------------------
@@ -649,9 +628,8 @@ async def get_artifact(pid: str, name: str) -> dict[str, Any]:
 def main() -> None:
     import uvicorn
     print(f"\n  AI PM EXCALIBUR running on http://localhost:{PORT}\n")
-    print(f"  chat UI:  http://localhost:{PORT}/")
-    print(f"  Legacy form view:    http://localhost:{PORT}/legacy-form")
-    print(f"  API docs:            http://localhost:{PORT}/docs\n")
+    print(f"  Chat UI:   http://localhost:{PORT}/")
+    print(f"  API docs:  http://localhost:{PORT}/docs\n")
     print(f"  Projects dir:        {PROJECTS_DIR}")
     print(f"  Press Ctrl-C to stop\n")
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="info")

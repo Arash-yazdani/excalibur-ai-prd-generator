@@ -99,6 +99,7 @@ All settings are optional — copy `.env.example` to `.env` to change defaults.
 |----------|---------|---------|
 | `PORT` | `4500` | Web server port |
 | `PROJECTS_DIR` | `./projects` | Where project JSON files are stored (point it at a synced folder if you like) |
+| `EXCALIBUR_MODEL` | `claude-opus-4-7` | Claude model the agents run on |
 
 ---
 
@@ -114,7 +115,7 @@ ai-pm-excalibur/
 ├── prompts/             # One persona prompt per agent
 ├── tools/               # Project IO, handoffs, artifacts, run log, memory, auth preflight
 ├── memory/              # Cross-project lessons (starts empty)
-├── static/              # Chat SPA + a legacy form fallback at /legacy-form
+├── static/              # The chat-style single-page UI
 └── projects/            # Your project files live here (git-ignored)
 ```
 
@@ -122,7 +123,7 @@ ai-pm-excalibur/
 
 ## How it works
 
-- **One source of truth.** `framework/questions.json` defines every phase, section, and question. The UI, the agents, and the legacy form all read from it.
+- **One source of truth.** `framework/questions.json` defines every phase, section, and question. The UI and the agents all read from it.
 - **Scoped agents.** Each agent can only write the questions it owns. The PM agent is the only one allowed to edit across the whole document.
 - **Handoff packets.** Between phases an agent writes a structured handoff (summary, decisions, constraints, open risks) that the next agent reads first.
 - **Resumable.** Runs can be paused between agents and resumed; completed agents are skipped on resume.

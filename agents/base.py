@@ -20,6 +20,7 @@ References:
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -42,7 +43,8 @@ from tools import question_io as qio
 from tools import runs as runs_log
 from tools.paths import BASE_DIR, PROMPTS_DIR, pause_flag_path
 
-MODEL = "claude-opus-4-7"
+# Model is overridable without touching code — set EXCALIBUR_MODEL in .env.
+MODEL = os.environ.get("EXCALIBUR_MODEL", "claude-opus-4-7")
 DEFAULT_EFFORT = "high"
 MCP_SERVER_KEY = "prd"  # dict key in mcp_servers; tools become mcp__prd__<name>
 MAX_TURNS = 80

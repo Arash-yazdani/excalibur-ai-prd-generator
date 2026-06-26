@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -31,30 +30,15 @@ from dotenv import load_dotenv
 # Load .env (PROJECTS_DIR override etc.) from this dir.
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
-# Force the bundled Claude Code CLI onto its persistent OAuth token (Claude
-# Max subscription). Two classes of env vars can derail this:
-#
-#   1. ANTHROPIC_API_KEY (even an empty string) makes the CLI prefer API-key
-#      auth over OAuth. Stripping it forces OAuth precedence.
-#   2. The CLAUDE_CODE_* host-injection vars tell the CLI "expect IPC-mediated
-#      auth from your parent host (Claude Desktop)". Outside Claude Desktop's
-#      IPC scope — which we are, as a Python server spawned independently —
-#      that handshake fails and the CLI 401s instead of falling through to its
-#      persistent OAuth token. Stripping them lets the CLI use the long-lived
-#      token from `claude setup-token`.
-#
-# Prerequisite: the user must have run `claude setup-token` once to create the
-# persistent on-disk OAuth credential. `claude auth login` alone is not
-# sufficient when the parent shell is Claude Desktop, because Desktop manages
-# auth via env injection rather than persisting credentials to disk.
-for _var in (
-    "ANTHROPIC_API_KEY",
-    "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST",
-    "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH",
-    "CLAUDE_CODE_ENTRYPOINT",
-    "CLAUDECODE",
-):
-    os.environ.pop(_var, None)
+# Force the bundled Claude Code CLI onto its persistent Claude Max OAuth token
+# before importing the agent layer: strip ANTHROPIC_API_KEY (which makes the CLI
+# prefer API-key auth) and the CLAUDE_CODE_* host-IPC vars (which make it expect
+# IPC auth from Claude Desktop and 401 when spawned standalone). The var list is
+# the single source of truth in tools/auth_preflight.
+# Prerequisite: run `claude setup-token` once to create the on-disk OAuth token.
+from tools.auth_preflight import strip_host_ipc_env  # noqa: E402
+
+strip_host_ipc_env()
 
 from agents.base import (  # noqa: E402
     AgentConfig,

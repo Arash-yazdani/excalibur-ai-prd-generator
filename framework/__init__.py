@@ -1,7 +1,7 @@
 """Agentic PRD framework registry.
 
 `questions.json` is the single source of truth for phases, sections, and the
-57 questions. The web UI, the legacy form, and every agent read from it.
+57 questions. The web UI and every agent read from it.
 """
 from __future__ import annotations
 

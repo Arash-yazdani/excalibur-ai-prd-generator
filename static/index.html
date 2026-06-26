@@ -256,8 +256,7 @@ function renderHeader() {
       <div class="header-actions">
         ${S.screen === "project"
           ? `<button class="btn btn-ghost" onclick="window._back()">← All projects</button>`
-          : `<a class="btn btn-ghost" href="/legacy-form" target="_blank" title="Direct question-by-question editor">Legacy form ↗</a>
-             <button class="btn btn-primary" onclick="window._newProject()">+ New project</button>`}
+          : `<button class="btn btn-primary" onclick="window._newProject()">+ New project</button>`}
       </div>
     </div>
   `;
@@ -367,7 +366,6 @@ function renderIntake(p, readonly) {
       ${hasQ1Q7 ? `
         <div style="margin-top:18px;padding:14px 16px;background:var(--emerald-bg);border:1px solid var(--emerald-border);border-radius:8px;font-size:13px;color:var(--emerald-text)">
           ✓ q1–q7 are already filled. The intake agent will skip; the consultants run from your existing answers.
-          <a href="/legacy-form" target="_blank" style="margin-left:6px">View answers →</a>
         </div>` : ""}
     </div>
   `;
@@ -422,7 +420,6 @@ function renderComplete(p) {
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="window._rerun()">▶ Re-run</button>
-          <a class="btn btn-ghost" href="/legacy-form" target="_blank">Edit answers ↗</a>
         </div>
       </div>
       <div class="tabs">${tabHtml}</div>
