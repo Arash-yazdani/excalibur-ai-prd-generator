@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="assets/hero.svg" alt="AI PM EXCALIBUR — Agentic PRD Generator" width="100%">
+  <img src="assets/logo.svg" alt="EXCALIBUR" width="440">
+</p>
+
+<p align="center">
+  <img src="assets/hero.svg" alt="AI PM EXCALIBUR — Agentic PRD Generator landing page" width="100%">
 </p>
 
 <h1 align="center">AI PM EXCALIBUR</h1>
