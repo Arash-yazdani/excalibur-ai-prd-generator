@@ -120,6 +120,11 @@ def _project_summary(pid: str, framework: dict[str, Any]) -> dict[str, Any]:
         "id": pid,
         "meta": data.get("meta", {}),
         "stats": _calc_stats(data, framework),
+        # Surface run state so the projects list shows running/complete/paused
+        # badges — the SPA already reads p._status.state per card.
+        # ponytail: re-reads runs.jsonl per project; fine at single-user scale,
+        # batch into one read if a user ever accumulates hundreds of projects.
+        "_status": _run_status(pid),
         "modified": project_path(pid).stat().st_mtime,
     }
 
