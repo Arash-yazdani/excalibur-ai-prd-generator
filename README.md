@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/hero.svg" alt="AI PM EXCALIBUR — Agentic PRD Generator landing page" width="100%">
+  <img src="assets/screenshot-landing.png" alt="AI PM EXCALIBUR — the project workspace" width="100%">
 </p>
 
 <h1 align="center">AI PM EXCALIBUR</h1>
