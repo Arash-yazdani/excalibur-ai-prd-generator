@@ -1,11 +1,5 @@
 
 
-https://github.com/user-attachments/assets/1efc8342-fe9d-4d0f-b000-c899db1ae982
-
-
-
-https://github.com/user-attachments/assets/b4983b4b-7a1a-4661-9e57-3e658cd24500
-
 <p align="center">
   <img src="assets/logo.svg" alt="EXCALIBUR" width="440">
 </p>
@@ -25,9 +19,8 @@ https://github.com/user-attachments/assets/b4983b4b-7a1a-4661-9e57-3e658cd24500
 </p>
 
 <p align="center">
-  <a href="assets/demo.mp4"><img src="assets/demo.gif" alt="AI PM EXCALIBUR — 30-second explainer" width="100%"></a>
+  <img src="assets/demo.gif" alt="AI PM EXCALIBUR — 30-second explainer" width="100%">
 </p>
-<p align="center"><sub><strong>▶ <a href="assets/demo.mp4">Watch the full-quality video (MP4 · 34s)</a></strong> — the looping GIF above is a lightweight preview</sub></p>
 
 ---
 
@@ -66,8 +59,8 @@ Agents also keep a lightweight **cross-project memory**: after each run they app
 
 ```bash
 # 1. Clone
-git clone https://github.com/YOUR-USERNAME/ai-pm-excalibur.git
-cd ai-pm-excalibur
+git clone https://github.com/arashyazd-bot/excalibur-ai-prd-generator.git
+cd excalibur-ai-prd-generator
 
 # 2. Create and activate a virtual environment
 python3 -m venv .venv
