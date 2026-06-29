@@ -16,6 +16,11 @@
   <img src="https://img.shields.io/badge/PRs-welcome-orange.svg" alt="PRs welcome">
 </p>
 
+<p align="center">
+  <a href="assets/demo.mp4"><img src="assets/demo.gif" alt="AI PM EXCALIBUR — 30-second explainer" width="100%"></a>
+</p>
+<p align="center"><sub><strong>▶ <a href="assets/demo.mp4">Watch the full-quality video (MP4 · 34s)</a></strong> — the looping GIF above is a lightweight preview</sub></p>
+
 ---
 
 ## What it is
