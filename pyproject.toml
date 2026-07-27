@@ -1,22 +1,35 @@
 [project]
-name = "ai-pm-excalibur"
-version = "0.2.0"
-description = "AI PM EXCALIBUR: multi-agent system that turns freeform product context into a complete Agentic PRD via a six-agent pipeline (Intake → Discovery → Design → Develop → Deploy → PM). Single FastAPI app on :4500, chat-style UI, runs against Claude Max."
+# Name matches the GitHub repo slug so there is one fewer name to keep in sync.
+name = "excalibur-ai-prd-generator"
+version = "0.3.0"
+description = "EXCALIBUR: multi-agent system that turns freeform product context into a complete PRD via a six-agent pipeline (Intake → Discovery → Design → Develop → Deploy → PM). Single FastAPI app on :4500, runs on any Claude credential."
 requires-python = ">=3.10"
 dependencies = [
-    # Drives the agent loop via the bundled Claude Code CLI; inherits the user's
-    # `claude auth login` OAuth so calls bill against Claude Max, not API credits.
-    "claude-agent-sdk>=0.1.0",
+    # Drives the agent loop via the bundled Claude Code CLI, which resolves whatever
+    # credential the environment provides (API key, gateway, cloud provider, or
+    # subscription). Capped: the code uses recent ClaudeAgentOptions fields
+    # (effort, thinking, setting_sources) that a minor bump could rename.
+    "claude-agent-sdk>=0.2.0,<0.3.0",
     "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
+    # Bare uvicorn on purpose: [standard] pulls uvloop/httptools/watchfiles/
+    # websockets/PyYAML, and this app uses none of them (no reload, SSE is plain HTTP).
+    "uvicorn>=0.32.0",
     "markdown>=3.7",
+    # Sanitizes agent-authored markdown before the SPA puts it in innerHTML.
+    "nh3>=0.2.18",
     "python-dotenv>=1.0.1",
     "sse-starlette>=2.1.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
 [project.scripts]
-ai-pm-excalibur = "server:main"
-ai-pm-excalibur-cli = "orchestrator:main"
+excalibur = "server:main"
+excalibur-cli = "orchestrator:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
@@ -27,3 +40,25 @@ py-modules = ["server", "orchestrator"]
 
 [tool.setuptools.packages.find]
 include = ["agents*", "tools*", "framework*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
+ignore = [
+    "E501",  # line length is handled by the formatter
+    "S101",  # asserts are fine in tests
+    # Every subprocess call in this codebase is a fixed argv list with no shell and
+    # no model-supplied arguments: the `claude` CLI, `ps`, and macOS `security`.
+    # Project ids are validated by _safe_id before they reach any of them.
+    "S603",
+    "S607",  # `claude` / `ps` / `security` are resolved from PATH by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

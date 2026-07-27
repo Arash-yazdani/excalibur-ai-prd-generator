@@ -1,25 +1,18 @@
-
-
 <p align="center">
   <img src="assets/logo.svg" alt="EXCALIBUR" width="440">
 </p>
 
-<p align="center">
-  <img src="assets/screenshot-landing.png" alt="AI PM EXCALIBUR — the project workspace" width="100%">
-</p>
-
-<h1 align="center">AI PM EXCALIBUR</h1>
-<p align="center"><strong>Agentic PRD Generator</strong> — turn a paragraph of product context into a complete, stakeholder-ready Product Requirements Document, written by six specialist AI agents working in sequence.</p>
+<h1 align="center">EXCALIBUR</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License">
-  <img src="https://img.shields.io/badge/UI-FastAPI%20%2B%20chat%20SPA-7c4dff.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/PRs-welcome-orange.svg" alt="PRs welcome">
+  <strong>Agentic PRD Generator</strong><br>
+  Paste a paragraph of product context. Get a complete, stakeholder-ready Product
+  Requirements Document, written by six specialist AI agents working in sequence.
 </p>
 
 <p align="center">
-  <img src="assets/demo.gif" alt="AI PM EXCALIBUR — 30-second explainer" width="100%">
+  Runs locally on whatever Claude access you already have —
+  API key, subscription, Bedrock, Google Cloud, Foundry, or your company's gateway.
 </p>
 
 ---
@@ -27,8 +20,6 @@
 ## What it is
 
 Paste in whatever you have — a deck export, an email thread, a one-pager, a transcript — and a pipeline of AI agents turns it into a structured **57-question PRD**. Each agent owns one phase, reads the previous agent's handoff, fills in its slice of the document, and passes a clean packet to the next. A final PM agent reviews the whole thing and produces a consolidated `final-prd.md`.
-
-It runs locally as a single web app. One process, one port, a chat-style UI.
 
 ```
 Intake → Discovery → Design → Develop → Deploy → PM Review
@@ -43,60 +34,99 @@ Intake → Discovery → Design → Develop → Deploy → PM Review
 | **Deploy** | Launch & GTM | q44–q57 |
 | **PM Review** | Consolidate & sense-check | the whole PRD → `final-prd.md` |
 
-Agents also keep a lightweight **cross-project memory**: after each run they append a few lessons to a markdown file, which is fed back into their context next time.
+Agents keep a lightweight **cross-project memory**: after each run they append a few lessons to a markdown file, which is fed back into their context next time.
+
+It runs as a single local web app — one process, one port, no build step, no database.
+
+<p align="center">
+  <img src="assets/screenshot-landing.png" alt="The EXCALIBUR project workspace" width="100%">
+</p>
+
+<p align="center"><a href="assets/demo.gif">▶ Watch the 30-second demo</a> (5 MB GIF)</p>
 
 ---
 
 ## Requirements
 
 - **Python 3.10+**
-- A **Claude Max subscription** and the **[Claude Code CLI](https://docs.claude.com/en/docs/claude-code)** installed.
-  This tool drives the agent loop through Claude Code's OAuth — it authenticates against your Max subscription and **never uses an Anthropic API key** (it strips `ANTHROPIC_API_KEY` at startup on purpose). No per-token billing.
+- The **[Claude Code CLI](https://code.claude.com/docs)** — the SDK bundles it, so `pip install -e .` is usually enough.
+- **A Claude credential.** Any of the options below works; none is privileged.
+
+### Providers
+
+Set **one** of these. EXCALIBUR detects which you configured and validates it before a run starts.
+
+| You have | Set | Notes |
+|---|---|---|
+| An Anthropic API key | `ANTHROPIC_API_KEY` | Billed per token to your Console account |
+| A Claude subscription | *(nothing)* — run `claude setup-token` once | Usage counts against your plan, not a bill |
+| An LLM gateway | `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` | LiteLLM, Portkey, or your org's proxy |
+| Amazon Bedrock | `CLAUDE_CODE_USE_BEDROCK=1` + AWS credentials | |
+| Google Cloud | `CLAUDE_CODE_USE_VERTEX=1` + `CLOUD_ML_REGION` + gcloud ADC | |
+| Microsoft Foundry | `CLAUDE_CODE_USE_FOUNDRY=1` + Azure credentials | |
+| Claude Platform on AWS | `CLAUDE_CODE_USE_ANTHROPIC_AWS=1` + `ANTHROPIC_AWS_WORKSPACE_ID` | |
+
+Check what's detected at any time:
+
+```bash
+python tools/auth_preflight.py
+```
+
+<details>
+<summary><strong>Can I run this on GPT, Gemini, or a local model?</strong></summary>
+
+<br>
+
+Not reliably, and not in a way anyone supports.
+
+EXCALIBUR's agent loop is the Claude Code CLI (via [`claude-agent-sdk`](https://github.com/anthropics/claude-agent-sdk-python)), which owns tool dispatch, the in-process MCP server, and context management. Anthropic's own documentation states they **do not support routing Claude Code to non-Claude models through any gateway**.
+
+Nothing here blocks you from trying: point `ANTHROPIC_BASE_URL` at an Anthropic-format shim such as LiteLLM and it will attempt the call. But know what breaks:
+
+- The **Develop agent depends on the CLI's built-in `WebSearch` tool** to validate current model pricing at q27. Most gateways don't emulate it, so that question silently degrades to unverified claims — and it's one of the most valuable answers in the PRD.
+- Tool-calling fidelity varies by model. The agents call up to 8 typed tools per turn and recover poorly from mis-formatted calls.
+- Anthropic-specific request fields (`thinking`, `effort`) are rejected outright by some shims.
+
+If you want this genuinely model-agnostic, the honest change is to replace the agent loop rather than proxy it — everything in `tools/` is already provider-neutral Python, and only two blocks in `agents/base.py` touch a model. PRs welcome.
+
+</details>
 
 ---
 
 ## Install
 
 ```bash
-# 1. Clone
 git clone https://github.com/arashyazd-bot/excalibur-ai-prd-generator.git
 cd excalibur-ai-prd-generator
 
-# 2. Create and activate a virtual environment
 python3 -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
-
-# 3. Install the package and its dependencies
 pip install -e .
 
-# 4. Authenticate with your Claude Max subscription (one time)
-#    This creates a persistent OAuth token — not an API key.
-claude setup-token
-
-# 5. Run
+cp .env.example .env                 # then set a credential (see Providers above)
 python server.py                     # → http://localhost:4500
 ```
 
-Then open **http://localhost:4500** in your browser.
-
-> **One-click launch:** on macOS double-click `start.command`; on Windows double-click `start.bat`. Both create the virtualenv, install dependencies, and start the server for you.
+> **One-click launch:** on macOS double-click `start.command`; on Windows `start.bat`. Both create the virtualenv, install dependencies, run the credential preflight, and open the app.
 
 ---
 
 ## Usage
 
-### Web UI (recommended)
+### Web UI
 1. Open **http://localhost:4500**.
-2. Create a project and paste your freeform product context.
+2. Create a project and paste your freeform product context. Not sure what that should look like? [`examples/sample-intake.md`](examples/sample-intake.md) is a realistic one — messy notes and an email thread, not a filled-in form.
 3. Click **Run** — watch the agents work through the pipeline in real time.
 4. Read the generated PRD, handoffs, and artifacts; export the final PRD.
 
+A full run takes roughly **50 minutes**. On a metered credential that's about **$5–12** in tokens; on a subscription it counts against your plan instead.
+
 ### Command line
 ```bash
-python orchestrator.py run <project-id>        # full pipeline
-python orchestrator.py resume <project-id>     # resume after a pause
-python orchestrator.py only design <project-id># run a single agent
-python orchestrator.py pause <project-id>      # soft-pause between agents
+python orchestrator.py run <project-id>         # full pipeline
+python orchestrator.py resume <project-id>      # resume after a pause
+python orchestrator.py only design <project-id> # re-run a single agent
+python orchestrator.py pause <project-id>       # soft-pause between agents
 ```
 
 ---
@@ -108,24 +138,25 @@ All settings are optional — copy `.env.example` to `.env` to change defaults.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `4500` | Web server port |
-| `PROJECTS_DIR` | `./projects` | Where project JSON files are stored (point it at a synced folder if you like) |
-| `EXCALIBUR_MODEL` | `claude-opus-4-7` | Claude model the agents run on |
+| `PROJECTS_DIR` | `./projects` | Where project JSON files are stored |
+| `EXCALIBUR_MODEL` | *(your provider's default)* | Pin a specific model; falls back to `ANTHROPIC_MODEL`. The correct form differs per provider — a model id on the Anthropic API, an inference profile ARN on Bedrock, a version name on Google Cloud, a deployment name on Foundry. |
 
 ---
 
 ## Project structure
 
 ```
-ai-pm-excalibur/
+excalibur-ai-prd-generator/
 ├── server.py            # FastAPI app: project CRUD, run control, SSE log stream
 ├── orchestrator.py      # CLI pipeline runner (run / resume / pause / reflect)
 ├── agents/              # The six agents (intake, discovery, design, develop, deploy, pm)
 │   └── base.py          # Shared agent runtime + the in-process tool surface
 ├── framework/           # The 57-question framework (questions.json = source of truth)
 ├── prompts/             # One persona prompt per agent
-├── tools/               # Project IO, handoffs, artifacts, run log, memory, auth preflight
+├── tools/               # Project IO, handoffs, artifacts, run log, memory, credential preflight
+├── tests/               # Framework invariants, credential detection, IO safety
 ├── memory/              # Cross-project lessons (starts empty)
-├── static/              # The chat-style single-page UI
+├── static/              # The single-page UI
 └── projects/            # Your project files live here (git-ignored)
 ```
 
@@ -133,16 +164,25 @@ ai-pm-excalibur/
 
 ## How it works
 
-- **One source of truth.** `framework/questions.json` defines every phase, section, and question. The UI and the agents all read from it.
-- **Scoped agents.** Each agent can only write the questions it owns. The PM agent is the only one allowed to edit across the whole document.
+- **One source of truth.** `framework/questions.json` defines every phase, section, and question. The UI, the agents, and the tests all read from it.
+- **Scoped agents.** Each agent can only write the questions it owns; the tool layer rejects out-of-scope writes. The PM agent is the only one allowed to edit across the whole document.
 - **Handoff packets.** Between phases an agent writes a structured handoff (summary, decisions, constraints, open risks) that the next agent reads first.
-- **Resumable.** Runs can be paused between agents and resumed; completed agents are skipped on resume.
+- **Resumable.** Runs pause between agents and resume; completed agents are skipped. State is written to disk per answered question, so a crash at q40 keeps q1–q39.
+- **Fails loudly.** A run that produces zero tokens, exhausts its turn budget, or leaves questions blank says so, rather than shipping a plausible-looking but incomplete PRD.
+
+---
+
+## Security
+
+This is a **local, single-user tool**. The server binds to `127.0.0.1` and the API is unauthenticated — that is the whole security model, so don't expose the port. There is deliberately no CORS middleware; `server.py` explains why.
+
+Agent-authored markdown is sanitized before it reaches the browser, because its content derives from whatever you pasted into intake. See [SECURITY.md](SECURITY.md) to report anything security-relevant.
 
 ---
 
 ## Contributing
 
-Issues and PRs welcome. This is a focused, dependency-light codebase — keep changes small and the question framework backwards-compatible.
+Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). This is a focused, dependency-light codebase: keep changes small, run `ruff check .` and `pytest`, and keep the question framework backwards-compatible.
 
 ## License
 

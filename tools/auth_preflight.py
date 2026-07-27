@@ -1,16 +1,26 @@
-"""Claude Max subscription OAuth preflight for AI PM EXCALIBUR standalone runs.
+"""Credential preflight for EXCALIBUR standalone runs.
 
-AI PM EXCALIBUR never uses ANTHROPIC_API_KEY or pay-per-token API billing. It uses the
-same OAuth path as Claude Code on a Max subscription (`claude auth login` /
-`claude setup-token`).
+EXCALIBUR drives the agent loop through the Claude Code CLI, which accepts any of
+the credential paths Claude Code itself supports. We detect which one the user has
+configured and validate it before a long pipeline starts:
 
-`claude auth status` can report loggedIn:true while API calls 401 when:
-  - Credentials live only in Claude Desktop's IPC env (stripped at startup)
-  - macOS Keychain / on-disk OAuth tokens are expired
-  - No on-disk ~/.claude/.credentials.json for SDK subprocesses
+  - Console API key           ANTHROPIC_API_KEY
+  - Gateway bearer token      ANTHROPIC_AUTH_TOKEN
+  - LLM gateway               ANTHROPIC_BASE_URL
+  - Amazon Bedrock            CLAUDE_CODE_USE_BEDROCK
+  - Google Cloud              CLAUDE_CODE_USE_VERTEX
+  - Microsoft Foundry         CLAUDE_CODE_USE_FOUNDRY
+  - Claude Platform on AWS    CLAUDE_CODE_USE_ANTHROPIC_AWS
+  - Claude subscription       `claude auth login` / `claude setup-token` (fallback)
 
-This module can materialize keychain creds to disk (macOS) and runs a minimal API
-probe so we fail fast before a 50-minute pipeline.
+Subscription OAuth needs extra care that the other modes don't: `claude auth status`
+can report loggedIn:true while API calls 401 when credentials live only in Claude
+Desktop's IPC env, when tokens are expired, or when there is no on-disk
+~/.claude/.credentials.json for SDK subprocesses to read. So in that mode only, we
+materialize keychain creds to disk (macOS) and check `auth status`.
+
+Every mode ends with the same real API probe, because it is the only check that
+actually proves the credential works.
 """
 from __future__ import annotations
 
@@ -23,21 +33,52 @@ import subprocess
 import sys
 from pathlib import Path
 
-STRIP_VARS = (
-    "ANTHROPIC_API_KEY",
+# Claude Desktop injects these into shells it spawns to say "expect IPC-mediated auth
+# from your parent host". Our CLI subprocess runs outside that IPC scope, so the
+# handshake finds no listener and 401s mid-pipeline. Always strip them — this is a
+# host-environment bug fix, unrelated to which credential the user chose.
+HOST_IPC_VARS = (
     "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST",
     "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH",
     "CLAUDE_CODE_ENTRYPOINT",
     "CLAUDECODE",
 )
 
+# (env var, mode id, human label). First match wins. Cloud-provider switches are
+# checked before plain credentials because they decide routing regardless of which
+# key is also present.
+AUTH_MODES = (
+    ("CLAUDE_CODE_USE_BEDROCK", "bedrock", "Amazon Bedrock"),
+    ("CLAUDE_CODE_USE_VERTEX", "vertex", "Google Cloud"),
+    ("CLAUDE_CODE_USE_FOUNDRY", "foundry", "Microsoft Foundry"),
+    ("CLAUDE_CODE_USE_ANTHROPIC_AWS", "anthropic_aws", "Claude Platform on AWS"),
+    ("ANTHROPIC_API_KEY", "api_key", "Anthropic API key"),
+    ("ANTHROPIC_AUTH_TOKEN", "auth_token", "gateway bearer token"),
+    ("ANTHROPIC_BASE_URL", "gateway", "LLM gateway"),
+)
+
 _KEYCHAIN_SERVICE = "Claude Code-credentials"
 _CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 
+_SETUP_HINT = (
+    "Set one of ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL, or a "
+    "CLAUDE_CODE_USE_* provider switch — or run `claude setup-token` to use a Claude "
+    "subscription. See the Providers table in the README."
+)
+
 
 def strip_host_ipc_env() -> None:
-    for var in STRIP_VARS:
+    """Remove Claude Desktop's host-IPC vars. Never touches the user's credentials."""
+    for var in HOST_IPC_VARS:
         os.environ.pop(var, None)
+
+
+def detect_auth_mode() -> tuple[str, str]:
+    """Return (mode_id, label) for the credential the environment is configured for."""
+    for var, mode, label in AUTH_MODES:
+        if os.environ.get(var):
+            return mode, label
+    return "oauth", "Claude subscription (OAuth)"
 
 
 def materialize_keychain_credentials() -> bool:
@@ -87,13 +128,14 @@ def _parse_auth_status(stdout: str) -> dict:
 
 
 def check_auth_status(cli: str | None = None) -> tuple[bool, str, dict]:
-    """Run `claude auth status` in the current (stripped) environment."""
+    """Run `claude auth status`. Subscription-OAuth mode only — other modes have no
+    login state to report and would fail this check while working fine."""
     cli = cli or shutil.which("claude")
     if not cli:
         return (
             False,
-            "bundled `claude` CLI not on PATH. Install Claude Code, then run "
-            "`claude setup-token`.",
+            "bundled `claude` CLI not on PATH. Install Claude Code, then configure a "
+            "credential. " + _SETUP_HINT,
             {},
         )
     try:
@@ -110,9 +152,8 @@ def check_auth_status(cli: str | None = None) -> tuple[bool, str, dict]:
     if not status.get("loggedIn"):
         return (
             False,
-            "Claude CLI is NOT logged in for Claude Max (OAuth). In Terminal.app run "
-            "`claude auth login` or `claude setup-token`, sign in with your Max "
-            "account in the browser, then restart AI PM EXCALIBUR.",
+            "No credential found. The Claude CLI is not logged in and no API key, "
+            "gateway, or cloud-provider variable is set.\n" + _SETUP_HINT,
             status,
         )
     sub = status.get("subscriptionType", "?")
@@ -120,8 +161,8 @@ def check_auth_status(cli: str | None = None) -> tuple[bool, str, dict]:
     return True, f"auth ok ({sub} via {method})", status
 
 
-def probe_api(cli: str | None = None, *, timeout: int = 90) -> tuple[bool, str]:
-    """Minimal real API call — catches status-ok-but-401 failures."""
+def probe_api(cli: str | None = None, *, timeout: int = 90, mode_label: str = "") -> tuple[bool, str]:
+    """Minimal real API call — the only check that proves the credential works."""
     cli = cli or shutil.which("claude")
     if not cli:
         return False, "claude CLI not on PATH"
@@ -135,33 +176,42 @@ def probe_api(cli: str | None = None, *, timeout: int = 90) -> tuple[bool, str]:
             stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
-        return False, "API auth probe timed out — try again or run `claude setup-token`."
+        return False, "API probe timed out — check your network, gateway, or credential."
     combined = f"{proc.stdout or ''}\n{proc.stderr or ''}"
     if proc.returncode == 0 and "401" not in combined and "Failed to authenticate" not in combined:
         return True, "API probe ok"
     if "401" in combined or "Failed to authenticate" in combined or "Invalid authentication" in combined:
+        who = mode_label or detect_auth_mode()[1]
         return (
             False,
-            "Claude Max OAuth returned 401 (subscription token expired or invalid). "
-            "In Terminal.app (not Cursor): unset the CLAUDE_CODE_* host vars, then run "
-            "`claude auth login` or `claude setup-token` and sign in with your Max account. "
-            "Do not use an Anthropic API key — AI PM EXCALIBUR bills against Max only.",
+            f"Authentication failed (401) using {who}. Check that the credential is "
+            f"valid and not expired. If you meant to use a Claude subscription, unset "
+            f"any ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN and run `claude setup-token`.",
         )
     snippet = combined.strip().splitlines()[-1] if combined.strip() else f"exit {proc.returncode}"
-    return False, f"API auth probe failed: {snippet}"
+    return False, f"API probe failed: {snippet}"
 
 
 def check_auth_ready(*, probe_api_call: bool = True) -> tuple[bool, str]:
-    """Full preflight: optional disk materialization, status, optional API probe."""
+    """Full preflight. Subscription mode gets keychain + status checks; every mode
+    gets the API probe."""
     strip_host_ipc_env()
-    materialize_keychain_credentials()
+    mode, label = detect_auth_mode()
     cli = shutil.which("claude")
-    ok, reason, _status = check_auth_status(cli)
-    if not ok:
-        return False, reason
+
+    if mode == "oauth":
+        materialize_keychain_credentials()
+        ok, reason, _status = check_auth_status(cli)
+        if not ok:
+            return False, reason
+    else:
+        if not cli:
+            return False, "bundled `claude` CLI not on PATH. Install Claude Code."
+        reason = f"using {label}"
+
     if not probe_api_call:
         return True, reason
-    probe_ok, probe_reason = probe_api(cli)
+    probe_ok, probe_reason = probe_api(cli, mode_label=label)
     if not probe_ok:
         return False, probe_reason
     return True, f"{reason}; {probe_reason}"

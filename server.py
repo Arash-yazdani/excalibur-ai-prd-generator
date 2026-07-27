@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""AI PM EXCALIBUR — unified FastAPI server.
+"""EXCALIBUR — unified FastAPI server.
 
 One process, one port (default :4500), three responsibilities:
   1. Project CRUD
   2. Run dashboard
   3. Pipeline kickoff with SSE-streamed logs + pause/resume/cancel
 
-The browser hits a single chat-style SPA at `/`.
+The browser hits a single-page app at `/`.
 
 Run:
   python server.py            # http://localhost:4500
@@ -21,37 +21,33 @@ import re
 import signal
 import subprocess
 import sys
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any
 
 import markdown as md_renderer
+import nh3
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
-# Force Claude Max OAuth before anything spawns the CLI: strip ANTHROPIC_API_KEY
-# (which makes the CLI prefer API-key auth) and the CLAUDE_CODE_* host-IPC vars
-# (which make it expect IPC auth from a host that isn't listening → 401). The var
-# list is the single source of truth in tools/auth_preflight.
-# Prerequisite: user has run `claude setup-token` (one-time persistent OAuth).
+# Strip the CLAUDE_CODE_* host-IPC vars before anything spawns the CLI — they make
+# it expect IPC auth from a host that isn't listening → 401. The user's credential
+# (API key, gateway token, cloud-provider switch, or subscription OAuth) is left
+# untouched; tools/auth_preflight detects which one is configured.
 from tools.auth_preflight import check_auth_ready, strip_host_ipc_env  # noqa: E402
 
 strip_host_ipc_env()
 
 from framework import load_framework  # noqa: E402
-from tools import artifacts as art_tools  # noqa: E402
-from tools import handoff as handoff_tools  # noqa: E402
 from tools import question_io as qio  # noqa: E402
 from tools import runs as runs_log  # noqa: E402
 from tools.paths import (  # noqa: E402
-    ARTIFACTS_DIR,
     BASE_DIR,
-    HANDOFFS_DIR,
     PROJECTS_DIR,
     RUNS_DIR,
     STATIC_DIR,
@@ -70,16 +66,13 @@ PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="AI PM EXCALIBUR", version="0.2.0")
+app = FastAPI(title="EXCALIBUR", version="0.3.0")
 
-# Permissive CORS for localhost dev (the SPA runs on the same origin so this
-# is mostly belt-and-suspenders for tools that hit the API directly).
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# NOTE: deliberately no CORS middleware. The API is unauthenticated, so binding to
+# 127.0.0.1 is the only thing keeping it private — and that stops the network, not
+# the browser. With `Access-Control-Allow-Origin: *`, any page the user happens to
+# visit while the server is running could read every PRD, delete projects, and start
+# runs. The SPA is same-origin and needs no CORS headers.
 
 
 # ----------------------------------------------------------------------------
@@ -87,6 +80,22 @@ app.add_middleware(
 # ----------------------------------------------------------------------------
 
 SAFE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+# Handoffs and artifacts are written by the agents, and their content derives from
+# whatever the user pasted into intake — so it is untrusted. Python-Markdown passes
+# raw HTML through (safe_mode was removed in 3.0) and the SPA assigns the result to
+# innerHTML, which would give a prompt-injected `<script>` execution in the app's
+# own origin against an unauthenticated API. Sanitize on the way out.
+_MD_TAGS = nh3.ALLOWED_TAGS | {
+    "h1", "h2", "h3", "h4", "h5", "h6", "p", "pre", "hr", "br",
+    "table", "thead", "tbody", "tr", "th", "td", "span", "div",
+}
+
+
+def render_markdown(raw: str) -> str:
+    """Markdown → sanitized HTML, safe for innerHTML."""
+    html = md_renderer.markdown(raw, extensions=["fenced_code", "tables"])
+    return nh3.clean(html, tags=_MD_TAGS)
 
 
 def _safe_id(pid: str) -> bool:
@@ -209,11 +218,18 @@ def _run_status(pid: str) -> dict[str, Any]:
     for e in reversed(events):
         ev = e.get("event", "")
         if ev == "pipeline_complete":
-            state = "complete"; last_ts = e.get("ts"); break
+            state = "complete"
+            last_ts = e.get("ts")
+            break
         if ev == "pipeline_paused":
-            state = "paused"; last_ts = e.get("ts"); break
-        if ev == "pipeline_start" or ev == "pipeline_resumed" or ev == "agent_start":
-            state = "running"; last_agent = e.get("agent"); last_ts = e.get("ts"); break
+            state = "paused"
+            last_ts = e.get("ts")
+            break
+        if ev in ("pipeline_start", "pipeline_resumed", "agent_start"):
+            state = "running"
+            last_agent = e.get("agent")
+            last_ts = e.get("ts")
+            break
         if ev == "error":
             state = "errored"
             last_ts = e.get("ts")
@@ -248,11 +264,11 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def root() -> FileResponse:
-    """The chat-style SPA."""
+    """The single-page app."""
     index = STATIC_DIR / "index.html"
     if not index.exists():
         return HTMLResponse(
-            "<h1>AI PM EXCALIBUR</h1><p>SPA not built yet — see /docs for the API.</p>",
+            "<h1>EXCALIBUR</h1><p>SPA not built yet — see /docs for the API.</p>",
             status_code=503,
         )
     return FileResponse(index)
@@ -411,13 +427,12 @@ async def start_run(pid: str) -> dict[str, Any]:
         raise HTTPException(400, "Invalid project id")
     if not project_path(pid).exists():
         raise HTTPException(404, f"Project not found: {pid}")
-    auth_ok, auth_reason = check_auth_ready(probe_api_call=True)
+    # to_thread: check_auth_ready shells out to the CLI with a 90s timeout. Called
+    # directly it blocks the event loop, freezing every SSE stream and the whole UI.
+    auth_ok, auth_reason = await asyncio.to_thread(check_auth_ready, probe_api_call=True)
     if not auth_ok:
         runs_log.log_event(pid, "orchestrator", "auth_failed", reason=auth_reason)
-        raise HTTPException(
-            503,
-            f"Claude Max OAuth not ready: {auth_reason}",
-        )
+        raise HTTPException(503, f"Credential not ready: {auth_reason}")
     if _is_run_active(pid):
         raise HTTPException(409, "A run is already active for this project.")
     # Clear any stale pause flag from a prior run.
@@ -434,10 +449,10 @@ async def resume_run(pid: str) -> dict[str, Any]:
         raise HTTPException(400, "Invalid project id")
     if not project_path(pid).exists():
         raise HTTPException(404, f"Project not found: {pid}")
-    auth_ok, auth_reason = check_auth_ready(probe_api_call=True)
+    auth_ok, auth_reason = await asyncio.to_thread(check_auth_ready, probe_api_call=True)
     if not auth_ok:
         runs_log.log_event(pid, "orchestrator", "auth_failed", reason=auth_reason)
-        raise HTTPException(503, f"Claude Max OAuth not ready: {auth_reason}")
+        raise HTTPException(503, f"Credential not ready: {auth_reason}")
     if _is_run_active(pid):
         raise HTTPException(409, "A run is already active for this project.")
     log_path = _spawn_orchestrator(pid, resume=True)
@@ -602,7 +617,7 @@ async def get_handoff(pid: str, name: str) -> dict[str, Any]:
     if not p.exists():
         raise HTTPException(404, f"Handoff not found: {name}")
     raw = p.read_text()
-    return {"name": name, "raw": raw, "html": md_renderer.markdown(raw, extensions=["fenced_code", "tables"])}
+    return {"name": name, "raw": raw, "html": render_markdown(raw)}
 
 
 @app.get("/api/projects/{pid}/artifacts")
@@ -623,7 +638,7 @@ async def get_artifact(pid: str, name: str) -> dict[str, Any]:
     if not p.exists():
         raise HTTPException(404, f"Artifact not found: {name}")
     raw = p.read_text()
-    return {"name": name, "raw": raw, "html": md_renderer.markdown(raw, extensions=["fenced_code", "tables"])}
+    return {"name": name, "raw": raw, "html": render_markdown(raw)}
 
 
 # ----------------------------------------------------------------------------
@@ -632,11 +647,11 @@ async def get_artifact(pid: str, name: str) -> dict[str, Any]:
 
 def main() -> None:
     import uvicorn
-    print(f"\n  AI PM EXCALIBUR running on http://localhost:{PORT}\n")
+    print(f"\n  EXCALIBUR running on http://localhost:{PORT}\n")
     print(f"  Chat UI:   http://localhost:{PORT}/")
     print(f"  API docs:  http://localhost:{PORT}/docs\n")
     print(f"  Projects dir:        {PROJECTS_DIR}")
-    print(f"  Press Ctrl-C to stop\n")
+    print("  Press Ctrl-C to stop\n")
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="info")
 
 

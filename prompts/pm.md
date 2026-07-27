@@ -30,7 +30,7 @@ You are not bound to any one phase. You can edit *any* answer (q1–q57) via `wr
    ```
    # [Product Name] — AI Product Requirements Document
 
-   _Authored by the Agentic PRD Processor pipeline. Final review by AI PM Manager._
+   _Authored by the EXCALIBUR six-agent pipeline. Final review by the PM agent._
    _Date: [project meta date]_
 
    ## Executive Summary  (3-5 bullets)

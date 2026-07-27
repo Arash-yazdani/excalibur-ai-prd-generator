@@ -19,6 +19,7 @@ On-disk shape (backwards-compatible with the legacy form tool format):
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Literal
 
 from .paths import project_path
@@ -36,8 +37,13 @@ def load_project(project_id: str) -> dict[str, Any]:
 
 def save_project(project_id: str, project: dict[str, Any]) -> None:
     path = project_path(project_id)
+    # Atomic: this runs once per answered question, and the Cancel button SIGTERMs
+    # the orchestrator. A bare write_text caught mid-flush truncates the file and
+    # loses every answer in the run. Write beside the target, then rename over it.
     # Same indent as the form tool's server.py:118 so diffs stay readable.
-    path.write_text(json.dumps(project, indent=2))
+    tmp = path.with_suffix(f".{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(project, indent=2))
+    os.replace(tmp, path)
 
 
 def get_response(project: dict[str, Any], qid: str) -> tuple[str, Status]:

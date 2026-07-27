@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI PM EXCALIBUR</title>
+<title>EXCALIBUR</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <meta name="description" content="Agentic PRD Generator — turn a paragraph of product context into a stakeholder-ready PRD, authored by six specialist AI agents.">
-<meta property="og:title" content="AI PM EXCALIBUR — Agentic PRD Generator">
+<meta property="og:title" content="EXCALIBUR — Agentic PRD Generator">
 <meta property="og:description" content="Turn a paragraph of product context into a stakeholder-ready PRD, authored by six specialist AI agents.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="/static/social-preview.png">
@@ -257,7 +257,7 @@ function renderHeader() {
   return `
     <div class="app-header">
       <div class="brand">
-        <div class="brand-title">AI PM EXCALIBUR</div>
+        <div class="brand-title">EXCALIBUR</div>
         <div class="brand-sub">Agentic PRD Generator</div>
       </div>
       <div class="header-actions">
@@ -333,7 +333,7 @@ function renderProject() {
         <div class="meta-field"><label class="meta-label">Date</label><input class="meta-input" value="${e(m.date || "")}" oninput="window._meta('date', this.value)" placeholder="e.g., Q2 2026" ${readonly ? "disabled" : ""}></div>
       </div>
       ${readonly ? `<div class="read-only-banner">⏸ Pipeline running — meta + intake locked. Pause or cancel to edit.</div>` : ""}
-      ${S.status?.last_error ? `<div class="read-only-banner" style="background:var(--ruby-bg);border-color:var(--ruby-border);color:var(--ruby-text)">⚠ ${e(S.status.last_error)}<div style="margin-top:8px;font-size:12px;opacity:0.9">Fix: in Terminal.app run <code>claude auth login</code> or <code>claude setup-token</code> with your Claude Max account (not an API key), then restart AI PM EXCALIBUR.</div></div>` : ""}
+      ${S.status?.last_error ? `<div class="read-only-banner" style="background:var(--ruby-bg);border-color:var(--ruby-border);color:var(--ruby-text)">⚠ ${e(S.status.last_error)}<div style="margin-top:8px;font-size:12px;opacity:0.9">Fix: run <code>python tools/auth_preflight.py</code> in a terminal to see which credential is detected and whether it works. Set <code>ANTHROPIC_API_KEY</code>, a gateway, or a <code>CLAUDE_CODE_USE_*</code> provider in <code>.env</code> — or run <code>claude setup-token</code> to use a Claude subscription. Then restart EXCALIBUR.</div></div>` : ""}
     </div>
     <div class="container">
       ${renderViewTabs(view)}

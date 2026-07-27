@@ -4,12 +4,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# Repo root (the AI PM EXCALIBUR folder). Resolved once at import time.
+# Repo root (the EXCALIBUR folder). Resolved once at import time.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Canonical projects directory. Defaults to <BASE_DIR>/projects (consolidated
 # from the legacy form tool location). Override via PROJECTS_DIR env var if you
-# want to point AI PM EXCALIBUR at a Dropbox-synced or shared location.
+# want to point EXCALIBUR at a Dropbox-synced or shared location.
 PROJECTS_DIR = Path(
     os.environ.get("PROJECTS_DIR", str(BASE_DIR / "projects"))
 ).resolve()

@@ -1,7 +1,7 @@
 """Handoff packets — markdown deliverables that one agent writes for the next."""
 from __future__ import annotations
 
-from .paths import project_handoffs_dir, ensure_project_dirs
+from .paths import ensure_project_dirs, project_handoffs_dir
 
 # Pipeline order. Each adjacent pair generates one handoff.
 HANDOFF_SEQUENCE = [

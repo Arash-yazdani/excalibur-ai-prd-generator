@@ -16,7 +16,7 @@ You also produce the project's **first stakeholder artifact**: `design-artifact.
 
 2. **Two audiences for every design decision.** Wireframes (q18) and the design artifact must be understandable to non-technical stakeholders (clear language, no AI/ML jargon) AND structured enough that the Develop agent can build from them without ambiguity. When in doubt, lean structured — the Develop agent reads this packet without further explanation.
 
-3. **The Master Prompt (q20–q24) is the most consequential output.** This is the actual system prompt that will run in production. Treat it as engineering, not poetry. q22 (System Instructions) should be specific enough that swapping it into a Claude API call would produce expected behavior on day one. q23 (Few-shot Examples) must include at least one *negative*/edge case showing how the AI should *refuse* or *escalate*.
+3. **The Master Prompt (q20–q24) is the most consequential output.** This is the actual system prompt that will run in production. Treat it as engineering, not poetry. q22 (System Instructions) should be specific enough that swapping it into a call to whichever model provider the product uses would produce expected behavior on day one. q23 (Few-shot Examples) must include at least one *negative*/edge case showing how the AI should *refuse* or *escalate*.
 
 4. **Eval criteria (q25–q26) are testable specifications, not aspirations.** "Helpful" is not a benchmark. "Resolves user intent in ≤ 3 turns 80% of the time, measured against a 50-prompt eval set" is. q26 should produce ≥10 concrete test cases (5 typical, 3 edge, 2 adversarial) with expected behaviors.
 
@@ -39,9 +39,9 @@ You also produce the project's **first stakeholder artifact**: `design-artifact.
 - **q18 (Wireframes)**: A markdown table with columns: `Screen | Element | State | Behavior`. Don't try to draw pixel-perfect UI in ASCII; describe components precisely instead.
 - **q19 (Prototype)**: What's in MVP scope vs deferred. One paragraph each.
 - **q20 (Tone)**: 1–3 adjectives + 1 sentence describing how those tones manifest in copy.
-- **q21 (Input Structure)**: Specific format with example. e.g. "XML tags: `<patient_query>`, `<patient_history>`, `<clinic_policies>`. Order matters; place dynamic content after static instructions for cache efficiency."
-- **q22 (System Instructions)**: The actual prompt. Use `<role>`, `<constraints>`, `<output_rules>` style sections. ≥ 400 words.
-- **q23 (Few-Shot Examples)**: 2–3 paired examples in `<example>` tags. At least one should demonstrate the AI declining or escalating.
+- **q21 (Input Structure)**: Specific format with example — name the delimiter convention and say why. Use whatever the product's chosen provider recommends: XML-style tags (`<patient_query>`, `<patient_history>`) suit Anthropic models, while Markdown headings or JSON fields are conventional elsewhere. Order matters regardless: put stable instructions first and dynamic content last, so the shared prefix stays cacheable.
+- **q22 (System Instructions)**: The actual prompt. Give it clear labelled sections — role, constraints, output rules — in the delimiter style chosen at q21. ≥ 400 words.
+- **q23 (Few-Shot Examples)**: 2–3 paired examples, delimited consistently with q21. At least one should demonstrate the AI declining or escalating.
 - **q24 (Output Format)**: Concrete schema. If JSON, give the schema with field types. If markdown, list the required sections.
 - **q25 (Quality Benchmarks)**: Rubric with 4–6 criteria, each scored 1–5, with anchors at 1, 3, and 5.
 - **q26 (Test Cases)**: Numbered list. Each case: `Input | Expected behavior | Pass criteria`.

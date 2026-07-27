@@ -1,8 +1,9 @@
 """ConsultantAgent — base class for all six pipeline agents.
 
 Each agent runs as a `ClaudeSDKClient` session that invokes the bundled
-Claude Code CLI. Auth is inherited from the user's `claude auth login` OAuth,
-so calls bill against Claude Max usage rather than Anthropic API credits.
+Claude Code CLI. Auth and model routing are whatever the environment provides —
+API key, gateway, cloud provider, or subscription — resolved by the CLI itself.
+See tools/auth_preflight.py.
 
 Per agent:
 - A static system prompt assembled from persona + framework spec + lessons.
@@ -43,9 +44,27 @@ from tools import question_io as qio
 from tools import runs as runs_log
 from tools.paths import BASE_DIR, PROMPTS_DIR, pause_flag_path
 
-# Model is overridable without touching code — set EXCALIBUR_MODEL in .env.
-MODEL = os.environ.get("EXCALIBUR_MODEL", "claude-opus-4-7")
-DEFAULT_EFFORT = "high"
+# Model is overridable without touching code — set EXCALIBUR_MODEL (or the standard
+# ANTHROPIC_MODEL) in .env. Deliberately no hardcoded default: an ID that is valid on
+# the Anthropic API is wrong on Bedrock (inference profile ARN), Vertex (version name),
+# and Foundry (deployment name). When unset we omit `model` entirely and let the CLI
+# resolve its own default for whichever provider is configured.
+MODEL = os.environ.get("EXCALIBUR_MODEL") or os.environ.get("ANTHROPIC_MODEL") or None
+def _opt_out(var: str, default: str) -> str | None:
+    """Env override that can also be switched off entirely with none/off/empty."""
+    value = os.environ.get(var, default).strip().lower()
+    return None if value in ("", "none", "off") else value
+
+
+# `thinking` and `effort` are not universally supported: Haiku 4.5 and older models
+# reject `effort`, and most gateway shims reject `thinking: adaptive`. Both are
+# omitted from the request when set to none/off, so cheaper models — and anything
+# behind a proxy — can still drive the pipeline.
+#   EXCALIBUR_EFFORT=none EXCALIBUR_THINKING=none
+DEFAULT_EFFORT = _opt_out("EXCALIBUR_EFFORT", "high")
+# Reflection is a one-sentence task; it never needs the main loop's depth.
+REFLECT_EFFORT = "medium" if DEFAULT_EFFORT else None
+THINKING = {"type": "adaptive"} if _opt_out("EXCALIBUR_THINKING", "adaptive") else None
 MCP_SERVER_KEY = "prd"  # dict key in mcp_servers; tools become mcp__prd__<name>
 MAX_TURNS = 80
 
@@ -507,7 +526,7 @@ async def run_agent(
 
     options = ClaudeAgentOptions(
         model=MODEL,
-        thinking={"type": "adaptive"},
+        thinking=THINKING,  # type: ignore[arg-type]
         effort=effort,  # type: ignore[arg-type]
         system_prompt=system_prompt,
         mcp_servers={MCP_SERVER_KEY: server},
@@ -557,18 +576,27 @@ async def run_agent(
         cache_read=usage["cache_read_input_tokens"],
         cache_create=usage["cache_creation_input_tokens"],
         stop_reason=last_stop_reason,
-        total_cost_usd=last_cost or 0.0,  # None on subscription auth
+        # None on subscription auth (no per-token charge); a real charge otherwise.
+        total_cost_usd=last_cost or 0.0,
     )
 
     # Abort hard if the agent produced zero tokens. This catches silent auth
-    # fallback (e.g. ANTHROPIC_API_KEY shadowing OAuth and hitting an empty
-    # API balance) — without this, the pipeline marches through dead handoffs
-    # and produces a final PRD that's actually empty.
+    # failure — without it, the pipeline marches through dead handoffs and
+    # produces a final PRD that's actually empty.
     if usage["output_tokens"] == 0 and usage["input_tokens"] == 0:
         raise RuntimeError(
-            f"{cfg.name} produced zero tokens — Claude Max OAuth failed (401). "
-            f"In Terminal.app run `claude auth login` or `claude setup-token` "
-            f"(Max subscription, not an API key), then restart the server."
+            f"{cfg.name} produced zero tokens, which means the model call failed "
+            f"(usually auth). Run `python tools/auth_preflight.py` to see which "
+            f"credential is detected and whether it works, then restart the server."
+        )
+
+    # max_turns exhaustion is not an error to the SDK — the session just stops. Left
+    # unchecked, the agent logs `agent_complete` with half its questions unanswered
+    # and the pipeline advances. Surface it; the orchestrator asserts completeness.
+    if last_stop_reason == "max_turns":
+        print(
+            f"\n[{cfg.name}] !! hit the {MAX_TURNS}-turn limit — its questions may be "
+            f"incomplete. Re-run this agent with `orchestrator.py only {cfg.name} <pid>`."
         )
 
     return {
@@ -612,8 +640,8 @@ async def reflect(cfg: AgentConfig, project_id: str) -> dict[str, Any]:
 
     options = ClaudeAgentOptions(
         model=MODEL,
-        thinking={"type": "adaptive"},
-        effort="medium",
+        thinking=THINKING,  # type: ignore[arg-type]
+        effort=REFLECT_EFFORT,  # type: ignore[arg-type]
         system_prompt=_build_system_prompt_str(cfg.name),
         mcp_servers={"reflect": server},
         allowed_tools=["mcp__reflect__append_lesson"],

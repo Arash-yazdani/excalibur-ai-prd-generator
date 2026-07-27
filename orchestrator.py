@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI entry point for AI PM EXCALIBUR's six-agent pipeline.
+"""CLI entry point for EXCALIBUR's six-agent pipeline.
 
 Subcommands:
     run <project-id>       Kick off the full pipeline (intake → ... → pm).
@@ -15,8 +15,10 @@ Subcommands:
 
 Pipeline order: intake → discovery → design → develop → deploy → pm → reflect-all
 
-Auth: invokes the bundled Claude Code CLI from claude-agent-sdk, which inherits
-the user's `claude auth login` OAuth (Claude Max). No ANTHROPIC_API_KEY required.
+Auth: invokes the bundled Claude Code CLI from claude-agent-sdk, which uses
+whichever credential your environment provides — an Anthropic API key, a gateway
+token, a cloud-provider switch (Bedrock/Vertex/Foundry), or a Claude subscription.
+See tools/auth_preflight.py and the Providers table in the README.
 """
 from __future__ import annotations
 
@@ -30,12 +32,9 @@ from dotenv import load_dotenv
 # Load .env (PROJECTS_DIR override etc.) from this dir.
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
-# Force the bundled Claude Code CLI onto its persistent Claude Max OAuth token
-# before importing the agent layer: strip ANTHROPIC_API_KEY (which makes the CLI
-# prefer API-key auth) and the CLAUDE_CODE_* host-IPC vars (which make it expect
-# IPC auth from Claude Desktop and 401 when spawned standalone). The var list is
-# the single source of truth in tools/auth_preflight.
-# Prerequisite: run `claude setup-token` once to create the on-disk OAuth token.
+# Strip the CLAUDE_CODE_* host-IPC vars before importing the agent layer — they
+# make the CLI expect IPC auth from Claude Desktop and 401 when spawned standalone.
+# The user's credential is left untouched; tools/auth_preflight detects it.
 from tools.auth_preflight import strip_host_ipc_env  # noqa: E402
 
 strip_host_ipc_env()
@@ -47,35 +46,21 @@ from agents.base import (  # noqa: E402
     reflect,
     run_agent,
 )
-from agents.intake import INTAKE  # noqa: E402
+from agents.deploy import DEPLOY  # noqa: E402
+from agents.design import DESIGN  # noqa: E402
+from agents.develop import DEVELOP  # noqa: E402
 from agents.discovery import DISCOVERY  # noqa: E402
+from agents.intake import INTAKE  # noqa: E402
+from agents.pm import PM  # noqa: E402
 from tools import question_io as qio  # noqa: E402
 from tools import runs as runs_log  # noqa: E402
 from tools.auth_preflight import check_auth_ready as _check_auth_ready  # noqa: E402
 from tools.paths import ensure_project_dirs, pause_flag_path  # noqa: E402
 
-# Pipeline: intake first, then the five consultants.
-PIPELINE: list[AgentConfig] = [INTAKE, DISCOVERY]
-try:
-    from agents.design import DESIGN  # type: ignore
-    PIPELINE.append(DESIGN)
-except ImportError:
-    pass
-try:
-    from agents.develop import DEVELOP  # type: ignore
-    PIPELINE.append(DEVELOP)
-except ImportError:
-    pass
-try:
-    from agents.deploy import DEPLOY  # type: ignore
-    PIPELINE.append(DEPLOY)
-except ImportError:
-    pass
-try:
-    from agents.pm import PM  # type: ignore
-    PIPELINE.append(PM)
-except ImportError:
-    pass
+# Pipeline: intake first, then the five consultants. These imports are NOT optional
+# — a swallowed ImportError here silently drops an agent, and the run still reports
+# success while producing a PRD with that agent's whole question range left blank.
+PIPELINE: list[AgentConfig] = [INTAKE, DISCOVERY, DESIGN, DEVELOP, DEPLOY, PM]
 
 
 def _check_intake_ready(project_id: str) -> tuple[bool, str]:
@@ -95,16 +80,48 @@ def _check_intake_ready(project_id: str) -> tuple[bool, str]:
     return False, "no intake_text and q1-q7 not filled — paste context in the UI first"
 
 
+def _unanswered(agent: AgentConfig, project_id: str) -> list[str]:
+    """Question ids the agent owns that are not complete with a non-empty response."""
+    project = qio.load_project(project_id)
+    out = []
+    for qid in agent.owned_question_ids:
+        response, status = qio.get_response(project, qid)
+        if status != "complete" or not response.strip():
+            out.append(qid)
+    return out
+
+
 def _agent_done(agent: AgentConfig, project_id: str) -> bool:
     """An agent is 'done' if every question it owns has status=complete with non-empty response."""
     if not agent.owned_question_ids:
         return False  # PM has no scoped questions; never auto-skip
-    project = qio.load_project(project_id)
-    for qid in agent.owned_question_ids:
-        response, status = qio.get_response(project, qid)
-        if status != "complete" or not response.strip():
-            return False
-    return True
+    return not _unanswered(agent, project_id)
+
+
+# Transient provider errors (529 overloaded, 5xx, socket resets) otherwise kill a
+# ~50-minute pipeline outright. State is written per-question, so a retry resumes
+# against work already on disk rather than starting the agent from scratch.
+RETRY_ATTEMPTS = 3
+RETRY_BASE_DELAY = 5.0
+
+
+async def _run_agent_with_retry(agent: AgentConfig, project_id: str) -> None:
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            await run_agent(agent, project_id)
+            return
+        except PipelinePaused:
+            raise
+        except Exception as e:
+            if attempt == RETRY_ATTEMPTS:
+                raise
+            delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
+            runs_log.log_event(
+                project_id, agent.name, "retry", attempt=attempt, error=str(e),
+            )
+            print(f"\n  {agent.name} failed (attempt {attempt}/{RETRY_ATTEMPTS}): {e}")
+            print(f"  retrying in {delay:.0f}s…")
+            await asyncio.sleep(delay)
 
 
 async def cmd_run(project_id: str, *, resume: bool = False) -> int:
@@ -142,13 +159,24 @@ async def cmd_run(project_id: str, *, resume: bool = False) -> int:
                 print(f"\n[skip] {agent.name} — work already complete (resume mode).")
                 continue
             try:
-                await run_agent(agent, project_id)
+                await _run_agent_with_retry(agent, project_id)
             except PipelinePaused:
                 raise
             except Exception as e:
                 runs_log.log_event(project_id, agent.name, "error", error=str(e))
                 print(f"\nERROR in {agent.name}: {e}")
                 return 1
+            # Post-condition. An agent that exhausts max_turns still returns cleanly,
+            # so without this the pipeline advances with questions silently blank.
+            missing = _unanswered(agent, project_id)
+            if missing:
+                runs_log.log_event(project_id, agent.name, "incomplete", missing=missing)
+                print(
+                    f"\n[warn] {agent.name} finished with {len(missing)} question(s) "
+                    f"unanswered: {', '.join(missing)}\n"
+                    f"       Re-run it with `python orchestrator.py only {agent.name} "
+                    f"{project_id}` before trusting the final PRD."
+                )
     except PipelinePaused:
         runs_log.log_event(project_id, "orchestrator", "pipeline_paused")
         print("\n⏸  Pipeline paused. Resume with `python orchestrator.py resume <pid>`.")
@@ -177,7 +205,10 @@ async def cmd_run(project_id: str, *, resume: bool = False) -> int:
     print(f"\n✓ Pipeline complete for {project_id}.")
     print(f"  - Project JSON: {qio.project_path(project_id)}")
     print(f"  - Run log: {runs_log.RUNS_LOG}")
-    print(f"  - Equivalent API cost: ${total_cost:.2f}  (Max subscription, no actual charge)")
+    # total_cost_usd is None on subscription auth (usage counts against the plan, not
+    # a bill) and a real charge on metered credentials — so don't call it free.
+    cost_note = "not billed per-token on a subscription" if total_cost == 0 else "billed to your provider"
+    print(f"  - API cost: ${total_cost:.2f}  ({cost_note})")
     print(f"  - Token usage: {total_in:,} input / {total_out:,} output")
     return 0
 
@@ -225,7 +256,7 @@ def cmd_pause(project_id: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="AI PM EXCALIBUR — six-agent pipeline orchestrator")
+    parser = argparse.ArgumentParser(description="EXCALIBUR — six-agent pipeline orchestrator")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_run = sub.add_parser("run", help="Run the full pipeline")

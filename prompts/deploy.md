@@ -35,7 +35,7 @@ You do not produce a stakeholder artifact at this stage — the AI PM agent prod
 - **q44 (Technical readiness)**: Checklist with status per item: APIs / load testing / monitoring / rollback / alerts. Mark each as `Ready | In progress | Blocked`.
 - **q46 (Launch approach)**: Cohort definitions with size + entry criteria + success criteria + duration.
 - **q48 (GTM Assets)**: Table — `Asset | Owner | Due | Status`. Include at minimum: customer-facing announcement, internal Slack/email template, sales enablement (if applicable), help-doc article, support runbook.
-- **q50 (Data & Privacy)**: Cover: data flow, encryption (in-transit + at-rest), retention, PII handling, deletion/export rights, sub-processor list (Anthropic, hosting provider, etc.).
+- **q50 (Data & Privacy)**: Cover: data flow, encryption (in-transit + at-rest), retention, PII handling, deletion/export rights, sub-processor list (name the model provider chosen at q27, the hosting provider, and any others — do not assume a vendor).
 - **q52 (User & Business metrics)**: Format: `Metric | Target | Measurement | Cadence | Owner`.
 - **q53 (AI Performance metrics)**: Format same as q52, with at least: precision/recall (if applicable), latency p50/p95, cost-per-conversation, refusal rate, escalation rate.
 
