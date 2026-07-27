@@ -25,6 +25,21 @@ pytest
 
 Both run in CI on Python 3.10 and 3.13. The test suite is deliberately narrow: it covers the deterministic surface only — framework invariants, credential detection, and IO safety. It needs no network and no credential, and it should stay that way.
 
+### Smoke-testing an actual run
+
+The tests never call a model, so they can't catch a break in the agent loop itself. Two cheap ways to check that:
+
+**Free, with a local model.** [`examples/litellm-ollama.yaml`](examples/litellm-ollama.yaml) points EXCALIBUR at Ollama through a LiteLLM proxy. It exercises credential detection, the CLI spawn, the MCP tool server, per-question state writes, handoffs, and resume. It does *not* tell you anything about output quality, and a weak local model may fail on tool formatting — that's a limitation of the harness, not necessarily your change.
+
+**Cheap, with a real credential.** Run the smallest agent on the cheapest model:
+
+```bash
+EXCALIBUR_MODEL=claude-haiku-4-5 EXCALIBUR_EFFORT=none EXCALIBUR_THINKING=none \
+  python orchestrator.py only intake <project-id>
+```
+
+`EFFORT` and `THINKING` must be off: Haiku 4.5 rejects both parameters. Intake is 7 questions and 3 tools, so this costs cents and finishes in a minute or two.
+
 ## Where things live
 
 | You want to change | Edit |

@@ -1,0 +1,36 @@
+# Free smoke test: drive the pipeline with a local Ollama model.
+#
+# This validates the plumbing — credential detection, CLI spawn, the in-process
+# MCP tool server, per-question state writes, handoffs, resume, SSE streaming —
+# without spending anything. It does NOT validate output quality, and it is not
+# a supported way to run the tool (see the README's "Can I run this on GPT,
+# Gemini, or a local model?" section).
+#
+#   ollama serve
+#   litellm --config examples/litellm-ollama.yaml --port 4000
+#
+# Then, in the shell you run EXCALIBUR from:
+#
+#   export ANTHROPIC_BASE_URL=http://localhost:4000
+#   export ANTHROPIC_AUTH_TOKEN=sk-local-anything
+#   export EXCALIBUR_MODEL=excalibur-local
+#   export EXCALIBUR_EFFORT=none      # LiteLLM/Ollama reject Anthropic's effort param
+#   export EXCALIBUR_THINKING=none    # ...and its adaptive-thinking param
+#
+# Pick an agent-tuned model — the consultant agents call 8 typed tools per turn
+# and general chat models mis-format them.
+
+model_list:
+  - model_name: excalibur-local
+    litellm_params:
+      model: ollama_chat/qwen3.5-agent:latest
+      api_base: http://localhost:11434
+
+  # Slower but stronger on multi-tool turns; swap the model_name above to use it.
+  - model_name: excalibur-local-big
+    litellm_params:
+      model: ollama_chat/qwen3.5:35b-a3b
+      api_base: http://localhost:11434
+
+litellm_settings:
+  drop_params: true   # silently discard Anthropic-only fields instead of 400ing
