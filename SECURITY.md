@@ -19,6 +19,6 @@ Keep `.env` out of version control — it is in `.gitignore`, and the credential
 
 ## Reporting a vulnerability
 
-Open a [GitHub issue](https://github.com/arashyazd-bot/excalibur-ai-prd-generator/issues) for anything low-risk. For something that shouldn't be public, use GitHub's **private vulnerability reporting** on the Security tab instead. Please include reproduction steps and what an attacker would gain.
+Open a [GitHub issue](https://github.com/Arash-yazdani/excalibur-ai-prd-generator/issues) for anything low-risk. For something that shouldn't be public, use GitHub's **private vulnerability reporting** on the Security tab instead. Please include reproduction steps and what an attacker would gain.
 
 Since this is a local tool with no server component, there is no deployed instance to patch — fixes ship as a normal release and users update by pulling.

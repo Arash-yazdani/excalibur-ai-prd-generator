@@ -1,0 +1,3 @@
+# Canonical author identity. Git treats addresses case-sensitively, so without
+# this `git shortlog -sne` lists the same person twice.
+Arash Yazdani <arashyazd@gmail.com> <ArashYazd@gmail.com>

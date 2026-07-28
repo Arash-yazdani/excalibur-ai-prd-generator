@@ -96,7 +96,7 @@ If you want this genuinely model-agnostic, the honest change is to replace the a
 ## Install
 
 ```bash
-git clone https://github.com/arashyazd-bot/excalibur-ai-prd-generator.git
+git clone https://github.com/Arash-yazdani/excalibur-ai-prd-generator.git
 cd excalibur-ai-prd-generator
 
 python3 -m venv .venv
