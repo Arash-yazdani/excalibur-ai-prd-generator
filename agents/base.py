@@ -42,6 +42,7 @@ from tools import handoff as handoff_tools
 from tools import memory as memory_tools
 from tools import question_io as qio
 from tools import runs as runs_log
+from tools.auth_preflight import resolve_model
 from tools.paths import BASE_DIR, PROMPTS_DIR, pause_flag_path
 
 # Model is overridable without touching code — set EXCALIBUR_MODEL (or the standard
@@ -49,7 +50,8 @@ from tools.paths import BASE_DIR, PROMPTS_DIR, pause_flag_path
 # the Anthropic API is wrong on Bedrock (inference profile ARN), Vertex (version name),
 # and Foundry (deployment name). When unset we omit `model` entirely and let the CLI
 # resolve its own default for whichever provider is configured.
-MODEL = os.environ.get("EXCALIBUR_MODEL") or os.environ.get("ANTHROPIC_MODEL") or None
+# Shared with the preflight so it probes the model the pipeline actually runs on.
+MODEL = resolve_model()
 def _opt_out(var: str, default: str) -> str | None:
     """Env override that can also be switched off entirely with none/off/empty."""
     value = os.environ.get(var, default).strip().lower()

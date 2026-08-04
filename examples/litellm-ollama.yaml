@@ -1,12 +1,27 @@
-# Free smoke test: drive the pipeline with a local Ollama model.
+# Free credential-path check against a local Ollama model.
 #
-# This validates the plumbing — credential detection, CLI spawn, the in-process
-# MCP tool server, per-question state writes, handoffs, resume, SSE streaming —
-# without spending anything. It does NOT validate output quality, and it is not
-# a supported way to run the tool (see the README's "Can I run this on GPT,
-# Gemini, or a local model?" section).
+# WHAT THIS IS GOOD FOR: proving the gateway path end to end — credential
+# detection, the CLI spawn, Anthropic-format routing through LiteLLM, and a real
+# model reply. If this works, ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN are
+# wired correctly.
+#
+# TIMING, measured on an M-series MacBook Air with qwen3.5-agent (6.6 GB):
+# the first call pays ~5m30s to load the model into memory; once warm, a
+# one-turn probe is ~11s. Real agent turns carry ~6K of system prompt plus
+# tool results, so they run slower than that — budget generously and keep
+# Ollama warm between runs.
+#
+# WHAT IS UNVALIDATED: whether a local model drives the pipeline correctly.
+# The consultant agents call 8 typed tools per turn and recover poorly from
+# mis-formatted calls. That is the real risk here, not speed. To validate the
+# pipeline itself, use a hosted model — `claude-haiku-4-5` costs cents for
+# `only intake`.
+#
+# This is also not a supported configuration; see the README's "Can I run this
+# on GPT, Gemini, or a local model?" section for what breaks and why.
 #
 #   ollama serve
+#   pip install 'litellm[proxy]'      # the bare litellm package can't serve
 #   litellm --config examples/litellm-ollama.yaml --port 4000
 #
 # Then, in the shell you run EXCALIBUR from:
@@ -14,8 +29,9 @@
 #   export ANTHROPIC_BASE_URL=http://localhost:4000
 #   export ANTHROPIC_AUTH_TOKEN=sk-local-anything
 #   export EXCALIBUR_MODEL=excalibur-local
-#   export EXCALIBUR_EFFORT=none      # LiteLLM/Ollama reject Anthropic's effort param
-#   export EXCALIBUR_THINKING=none    # ...and its adaptive-thinking param
+#   export EXCALIBUR_EFFORT=none          # Ollama rejects Anthropic's effort param
+#   export EXCALIBUR_THINKING=none        # ...and its adaptive-thinking param
+#   export EXCALIBUR_PROBE_TIMEOUT=600    # the 90s default is far too short here
 #
 # Pick an agent-tuned model — the consultant agents call 8 typed tools per turn
 # and general chat models mis-format them.

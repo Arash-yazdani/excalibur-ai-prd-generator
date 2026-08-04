@@ -163,14 +163,53 @@ def check_auth_status(cli: str | None = None) -> tuple[bool, str, dict]:
     return True, f"auth ok ({sub} via {method})", status
 
 
-def probe_api(cli: str | None = None, *, timeout: int = 90, mode_label: str = "") -> tuple[bool, str]:
+def resolve_model() -> str | None:
+    """The model the agents will actually use, or None to let the provider decide.
+
+    Lives here rather than in agents/base.py so the preflight probes the same model
+    the pipeline runs on. Probing a different one is worse than not probing: a
+    gateway that only serves specific names passes or fails on the wrong question.
+    """
+    return os.environ.get("EXCALIBUR_MODEL") or os.environ.get("ANTHROPIC_MODEL") or None
+
+
+def _first_real_error(text: str) -> str | None:
+    """Pick the error out of CLI output, ignoring advisory lines.
+
+    The CLI prints a `⚠ claude.ai connectors are disabled...` notice whenever a
+    credential env var is set — which is always true in every non-subscription
+    mode. Taking the last line blindly reports that warning as the failure and
+    hides the real one.
+    """
+    for line in reversed([ln.strip() for ln in text.splitlines() if ln.strip()]):
+        if line.startswith(("⚠", "warning:", "Warning:")):
+            continue
+        return line
+    return None
+
+
+def probe_timeout() -> int:
+    """Seconds to allow the probe. 90 suits a hosted model; a local one served
+    through a gateway can take minutes for the same single turn, so it's tunable."""
+    try:
+        return max(5, int(os.environ.get("EXCALIBUR_PROBE_TIMEOUT", "90")))
+    except ValueError:
+        return 90
+
+
+def probe_api(cli: str | None = None, *, timeout: int | None = None, mode_label: str = "") -> tuple[bool, str]:
     """Minimal real API call — the only check that proves the credential works."""
+    timeout = timeout if timeout is not None else probe_timeout()
     cli = cli or shutil.which("claude")
     if not cli:
         return False, "claude CLI not on PATH"
+    cmd = [cli, "-p", "Reply with exactly: ok", "--max-turns", "1"]
+    model = resolve_model()
+    if model:
+        cmd.extend(["--model", model])
     try:
         proc = subprocess.run(
-            [cli, "-p", "Reply with exactly: ok", "--max-turns", "1"],
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -178,10 +217,14 @@ def probe_api(cli: str | None = None, *, timeout: int = 90, mode_label: str = ""
             stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
-        return False, "API probe timed out — check your network, gateway, or credential."
+        return False, (
+            f"API probe timed out after {timeout}s. If the credential is fine and the "
+            f"model is just slow (a local model behind a gateway can take minutes for "
+            f"one turn), raise EXCALIBUR_PROBE_TIMEOUT or set EXCALIBUR_SKIP_PROBE=1."
+        )
     combined = f"{proc.stdout or ''}\n{proc.stderr or ''}"
     if proc.returncode == 0 and "401" not in combined and "Failed to authenticate" not in combined:
-        return True, "API probe ok"
+        return True, f"API probe ok{f' ({model})' if model else ''}"
     if "401" in combined or "Failed to authenticate" in combined or "Invalid authentication" in combined:
         who = mode_label or detect_auth_mode()[1]
         return (
@@ -190,8 +233,11 @@ def probe_api(cli: str | None = None, *, timeout: int = 90, mode_label: str = ""
             f"valid and not expired. If you meant to use a Claude subscription, unset "
             f"any ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN and run `claude setup-token`.",
         )
-    snippet = combined.strip().splitlines()[-1] if combined.strip() else f"exit {proc.returncode}"
-    return False, f"API probe failed: {snippet}"
+    snippet = _first_real_error(combined) or f"exit {proc.returncode}"
+    hint = ""
+    if model:
+        hint = f" (probing model {model!r} — confirm your provider serves that name)"
+    return False, f"API probe failed{hint}: {snippet}"
 
 
 def check_base_url_reachable(timeout: float = 3.0) -> tuple[bool, str]:
@@ -241,8 +287,8 @@ def check_auth_ready(*, probe_api_call: bool = True) -> tuple[bool, str]:
             return False, "bundled `claude` CLI not on PATH. Install Claude Code."
         reason = f"using {label}"
 
-    if not probe_api_call:
-        return True, reason
+    if not probe_api_call or os.environ.get("EXCALIBUR_SKIP_PROBE"):
+        return True, f"{reason} (probe skipped)" if probe_api_call else reason
     probe_ok, probe_reason = probe_api(cli, mode_label=label)
     if not probe_ok:
         return False, probe_reason

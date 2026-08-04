@@ -29,9 +29,9 @@ Both run in CI on Python 3.10 and 3.13. The test suite is deliberately narrow: i
 
 The tests never call a model, so they can't catch a break in the agent loop itself. Two cheap ways to check that:
 
-**Free, with a local model.** [`examples/litellm-ollama.yaml`](examples/litellm-ollama.yaml) points EXCALIBUR at Ollama through a LiteLLM proxy. It exercises credential detection, the CLI spawn, the MCP tool server, per-question state writes, handoffs, and resume. It does *not* tell you anything about output quality, and a weak local model may fail on tool formatting — that's a limitation of the harness, not necessarily your change.
+**Free, for the credential path.** [`examples/litellm-ollama.yaml`](examples/litellm-ollama.yaml) points EXCALIBUR at Ollama through a LiteLLM proxy, which proves gateway routing works end to end. Set `EXCALIBUR_PROBE_TIMEOUT=600` on the first run — loading a 6.6 GB model takes ~5m30s, though once warm a one-turn probe is ~11s. Whether a local model can actually drive the 8-tool agent loop is untested; that's the risk, not speed.
 
-**Cheap, with a real credential.** Run the smallest agent on the cheapest model:
+**Cheap, and the one that actually validates the pipeline.** Run the smallest agent on the cheapest model:
 
 ```bash
 EXCALIBUR_MODEL=claude-haiku-4-5 EXCALIBUR_EFFORT=none EXCALIBUR_THINKING=none \
