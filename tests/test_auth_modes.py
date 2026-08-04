@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from tools.auth_preflight import AUTH_MODES, HOST_IPC_VARS, detect_auth_mode, strip_host_ipc_env
+from tools.auth_preflight import (
+    AUTH_MODES,
+    HOST_IPC_VARS,
+    check_base_url_reachable,
+    detect_auth_mode,
+    strip_host_ipc_env,
+)
 
 ALL_CREDENTIAL_VARS = [var for var, _, _ in AUTH_MODES]
 
@@ -66,3 +72,41 @@ def test_strip_removes_host_ipc_vars_but_never_credentials(monkeypatch):
 
 def test_anthropic_api_key_is_not_in_the_strip_list():
     assert "ANTHROPIC_API_KEY" not in HOST_IPC_VARS
+
+
+class TestBaseUrlReachability:
+    """A dead gateway should fail in milliseconds, not after the 90s probe."""
+
+    def test_no_base_url_is_not_a_failure(self):
+        ok, why = check_base_url_reachable()
+        assert ok and why == ""
+
+    def test_unreachable_gateway_fails_fast(self, monkeypatch):
+        import time
+
+        # Port 1 on localhost: nothing listens, and it refuses immediately.
+        monkeypatch.setenv("ANTHROPIC_BASE_URL", "http://127.0.0.1:1")
+        start = time.monotonic()
+        ok, why = check_base_url_reachable(timeout=3.0)
+        elapsed = time.monotonic() - start
+
+        assert not ok
+        assert "nothing is listening" in why
+        assert elapsed < 3.0, f"took {elapsed:.1f}s — should refuse immediately"
+
+    def test_reachable_gateway_passes(self, monkeypatch):
+        import socket as _socket
+
+        with _socket.socket() as srv:
+            srv.bind(("127.0.0.1", 0))
+            srv.listen(1)
+            port = srv.getsockname()[1]
+            monkeypatch.setenv("ANTHROPIC_BASE_URL", f"http://127.0.0.1:{port}")
+            ok, why = check_base_url_reachable()
+        assert ok, why
+
+    def test_malformed_base_url_is_reported(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_BASE_URL", "not-a-url")
+        ok, why = check_base_url_reachable()
+        assert not ok
+        assert "not a valid URL" in why

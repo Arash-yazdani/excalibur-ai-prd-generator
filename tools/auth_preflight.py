@@ -29,9 +29,11 @@ import json
 import os
 import platform
 import shutil
+import socket
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Claude Desktop injects these into shells it spawns to say "expect IPC-mediated auth
 # from your parent host". Our CLI subprocess runs outside that IPC scope, so the
@@ -192,12 +194,42 @@ def probe_api(cli: str | None = None, *, timeout: int = 90, mode_label: str = ""
     return False, f"API probe failed: {snippet}"
 
 
+def check_base_url_reachable(timeout: float = 3.0) -> tuple[bool, str]:
+    """Fast TCP check against ANTHROPIC_BASE_URL, if one is set.
+
+    Without this, pointing at a gateway that isn't running costs the full 90s
+    probe timeout: the CLI retries with backoff rather than surfacing the
+    connection refusal. A dead local proxy is the most common way to get here,
+    and "nothing is listening" is a much more useful answer than "timed out".
+    """
+    base_url = os.environ.get("ANTHROPIC_BASE_URL")
+    if not base_url:
+        return True, ""
+    parsed = urlparse(base_url)
+    host = parsed.hostname
+    if not host:
+        return False, f"ANTHROPIC_BASE_URL is not a valid URL: {base_url!r}"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True, ""
+    except OSError as e:
+        return False, (
+            f"nothing is listening at {base_url} ({type(e).__name__}). "
+            f"Start the gateway, or unset ANTHROPIC_BASE_URL to use a direct credential."
+        )
+
+
 def check_auth_ready(*, probe_api_call: bool = True) -> tuple[bool, str]:
     """Full preflight. Subscription mode gets keychain + status checks; every mode
     gets the API probe."""
     strip_host_ipc_env()
     mode, label = detect_auth_mode()
     cli = shutil.which("claude")
+
+    reachable, why = check_base_url_reachable()
+    if not reachable:
+        return False, why
 
     if mode == "oauth":
         materialize_keychain_credentials()
