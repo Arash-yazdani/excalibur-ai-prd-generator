@@ -72,6 +72,54 @@ def test_pm_owns_nothing_but_can_edit_everything():
     assert PM.owned_question_ids == []
 
 
+class TestCompletionSemantics:
+    """`needs-review` is a correct terminal state, not a failure. The prompts tell
+    agents to use it when they've made an assumption a human should check, so
+    counting it as unanswered cries wolf and makes resume redo finished work."""
+
+    def _project(self, tmp_path, monkeypatch, statuses):
+        import json
+
+        from tools import question_io as qio
+
+        target = tmp_path / "p.json"
+        target.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "meta": {},
+                    "data": {
+                        qid: {"response": resp, "status": status}
+                        for qid, (resp, status) in statuses.items()
+                    },
+                }
+            )
+        )
+        monkeypatch.setattr(qio, "project_path", lambda _pid: target)
+        return "p"
+
+    def test_needs_review_counts_as_answered(self, tmp_path, monkeypatch):
+        import orchestrator as o
+
+        pid = self._project(
+            tmp_path,
+            monkeypatch,
+            {q: ("real content", "needs-review") for q in INTAKE.owned_question_ids},
+        )
+        assert o._unanswered(INTAKE, pid) == []
+        assert o._agent_done(INTAKE, pid) is True
+        assert o._flagged(INTAKE, pid) == INTAKE.owned_question_ids
+
+    def test_blank_response_is_unanswered_whatever_the_status(self, tmp_path, monkeypatch):
+        import orchestrator as o
+
+        statuses = {q: ("real content", "complete") for q in INTAKE.owned_question_ids}
+        statuses["q3"] = ("   ", "complete")  # status lies; content is empty
+        pid = self._project(tmp_path, monkeypatch, statuses)
+        assert o._unanswered(INTAKE, pid) == ["q3"]
+        assert o._agent_done(INTAKE, pid) is False
+
+
 def test_handoff_chain_is_connected():
     """next_agent must form one unbroken chain ending at pm."""
     chain, seen = [], set()

@@ -296,8 +296,25 @@ def check_auth_ready(*, probe_api_call: bool = True) -> tuple[bool, str]:
 
 
 def main() -> int:
+    # Run standalone, this is the tool users are told to reach for when auth is
+    # confusing — so it has to see the same environment the app does. server.py
+    # and orchestrator.py load .env themselves before importing anything; without
+    # the same call here, a correctly configured .env reports "no credential
+    # found", which is the precise false negative this script exists to prevent.
+    # Kept inside main() so importing the module stays side-effect free.
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
+    except ImportError:
+        pass
+
+    mode, label = detect_auth_mode()
+    print(f"credential: {label}")
+    if model := resolve_model():
+        print(f"model:      {model}")
     ok, reason = check_auth_ready(probe_api_call=True)
-    print(reason)
+    print(f"result:     {reason}")
     return 0 if ok else 1
 
 

@@ -81,18 +81,34 @@ def _check_intake_ready(project_id: str) -> tuple[bool, str]:
 
 
 def _unanswered(agent: AgentConfig, project_id: str) -> list[str]:
-    """Question ids the agent owns that are not complete with a non-empty response."""
+    """Question ids the agent owns that have no answer at all.
+
+    `needs-review` does NOT count. The prompts explicitly instruct agents to use
+    it when they've made an assumption a human should check, so it is a correct
+    terminal state with real content behind it — treating it as a failure would
+    cry wolf on a good run and make resume re-do work that was already done.
+    """
     project = qio.load_project(project_id)
-    out = []
-    for qid in agent.owned_question_ids:
-        response, status = qio.get_response(project, qid)
-        if status != "complete" or not response.strip():
-            out.append(qid)
-    return out
+    return [
+        qid
+        for qid in agent.owned_question_ids
+        if not qio.get_response(project, qid)[0].strip()
+    ]
+
+
+def _flagged(agent: AgentConfig, project_id: str) -> list[str]:
+    """Answered, but the agent flagged an assumption worth a human look."""
+    project = qio.load_project(project_id)
+    return [
+        qid
+        for qid in agent.owned_question_ids
+        if qio.get_response(project, qid)[1] == "needs-review"
+        and qio.get_response(project, qid)[0].strip()
+    ]
 
 
 def _agent_done(agent: AgentConfig, project_id: str) -> bool:
-    """An agent is 'done' if every question it owns has status=complete with non-empty response."""
+    """An agent is 'done' if every question it owns has a non-empty answer."""
     if not agent.owned_question_ids:
         return False  # PM has no scoped questions; never auto-skip
     return not _unanswered(agent, project_id)
@@ -176,6 +192,12 @@ async def cmd_run(project_id: str, *, resume: bool = False) -> int:
                     f"unanswered: {', '.join(missing)}\n"
                     f"       Re-run it with `python orchestrator.py only {agent.name} "
                     f"{project_id}` before trusting the final PRD."
+                )
+            flagged = _flagged(agent, project_id)
+            if flagged:
+                print(
+                    f"  {agent.name}: {len(flagged)} answer(s) marked needs-review "
+                    f"({', '.join(flagged)}) — answered, but worth your eyes."
                 )
     except PipelinePaused:
         runs_log.log_event(project_id, "orchestrator", "pipeline_paused")

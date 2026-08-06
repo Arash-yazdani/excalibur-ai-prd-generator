@@ -566,6 +566,15 @@ async def run_agent(
             elif isinstance(msg, ResultMessage):
                 last_stop_reason = msg.stop_reason
                 last_cost = msg.total_cost_usd
+                # ResultMessage carries the run's authoritative totals. Summing
+                # per-AssistantMessage usage undercounts badly — a run that wrote
+                # 4K characters reported 160 in / 29 out — because most messages
+                # in the CLI harness don't carry usage at all. Prefer this.
+                if msg.usage:
+                    for key in usage:
+                        reported = msg.usage.get(key)
+                        if reported:
+                            usage[key] = int(reported)
                 if msg.is_error:
                     print(f"\n[{cfg.name}] !! result reports error (api_error_status={msg.api_error_status})")
 
