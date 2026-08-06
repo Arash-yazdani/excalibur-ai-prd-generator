@@ -21,7 +21,9 @@ References:
 """
 from __future__ import annotations
 
+import functools
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -143,6 +145,41 @@ def _err(text: str) -> dict[str, Any]:
     return {"content": [{"type": "text", "text": text}], "isError": True}
 
 
+def _guard(*required: str):
+    """Turn malformed tool input into a readable error instead of a KeyError.
+
+    When a model emits invalid JSON for a tool call, the SDK hands the handler
+    `{"__unparsedToolInput": {...}}` rather than the declared fields. Indexing
+    `args["summary"]` then raises KeyError, which escapes the _ok/_err contract
+    and reaches the model as an opaque traceback — exactly when it most needs to
+    be told what to fix. Seen for real on a `write_handoff` call, which is the
+    one structural link between two agents.
+
+    Handlers keep indexing args directly; this guarantees the fields are there.
+    """
+
+    def decorate(fn: Callable[[dict[str, Any]], Any]) -> Callable[[dict[str, Any]], Any]:
+        @functools.wraps(fn)
+        async def wrapper(args: dict[str, Any]) -> dict[str, Any]:
+            if "__unparsedToolInput" in args:
+                return _err(
+                    "Your tool input was not valid JSON, so none of the fields arrived. "
+                    f"Re-send it as a JSON object with these fields: {', '.join(required)}. "
+                    "Watch for unescaped newlines and quotes inside string values."
+                )
+            missing = [name for name in required if not args.get(name)]
+            if missing:
+                return _err(
+                    f"Missing required field(s): {', '.join(missing)}. "
+                    f"This tool needs: {', '.join(required)}."
+                )
+            return await fn(args)
+
+        return wrapper
+
+    return decorate
+
+
 def _build_tools_server(project_id: str, cfg: AgentConfig):
     """Dispatch to the right tool surface for this agent.
 
@@ -183,6 +220,7 @@ def _build_intake_tools_server(project_id: str, cfg: AgentConfig):
         "Pass only the fields you want to change. The human's existing values stay otherwise.",
         {"name": str, "owner": str, "industry": str, "date": str},
     )
+    @_guard("field", "value")
     async def set_meta(args: dict[str, Any]) -> dict[str, Any]:
         # Drop None/empty so we don't overwrite with blanks
         fields = {k: v for k, v in args.items() if v}
@@ -200,6 +238,7 @@ def _build_intake_tools_server(project_id: str, cfg: AgentConfig):
         "intake text didn't supply enough info and you've made an explicit assumption.",
         {"qid": str, "response": str, "status": str},
     )
+    @_guard("qid", "response")
     async def write_answer(args: dict[str, Any]) -> dict[str, Any]:
         qid = args["qid"]
         response = args["response"]
@@ -231,6 +270,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
         "Returns the question text, theme, topic, tip, current status, and current response.",
         {"qid": str},
     )
+    @_guard("qid")
     async def read_question(args: dict[str, Any]) -> dict[str, Any]:
         qid = args["qid"]
         fw = load_framework()
@@ -263,6 +303,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
         "Get all questions + current responses for one section (e.g. 'market', 'users', 'ux', 'model', 'launch').",
         {"section_id": str},
     )
+    @_guard("section_id")
     async def read_section(args: dict[str, Any]) -> dict[str, Any]:
         section_id = args["section_id"]
         fw = load_framework()
@@ -281,6 +322,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
         "Get every section's content for a whole phase. Pass 'discovery', 'design', 'develop', or 'deploy'.",
         {"phase_id": str},
     )
+    @_guard("phase_id")
     async def read_phase(args: dict[str, Any]) -> dict[str, Any]:
         phase_id = args["phase_id"]
         fw = load_framework()
@@ -298,6 +340,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
         "status defaults to 'complete'; use 'needs-review' if you've made an explicit assumption that warrants human review.",
         {"qid": str, "response": str, "status": str},
     )
+    @_guard("qid", "response")
     async def write_answer(args: dict[str, Any]) -> dict[str, Any]:
         qid = args["qid"]
         response = args["response"]
@@ -318,6 +361,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
         "(e.g. 'design-artifact', 'develop-artifact', 'final-prd'). content is the full markdown body.",
         {"name": str, "content": str},
     )
+    @_guard("name", "content")
     async def save_artifact(args: dict[str, Any]) -> dict[str, Any]:
         try:
             return _ok(art_tools.save_artifact(project_id, args["name"], args["content"]))
@@ -329,6 +373,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
         "Read an artifact written by an earlier agent. Pass the artifact name without the .md extension.",
         {"name": str},
     )
+    @_guard("name")
     async def read_artifact(args: dict[str, Any]) -> dict[str, Any]:
         try:
             return _ok(art_tools.read_artifact(project_id, args["name"]))
@@ -341,6 +386,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
         "'discovery', 'design', 'develop', 'deploy'. You cannot read your own outgoing handoff.",
         {"prior_agent": str},
     )
+    @_guard("prior_agent")
     async def read_handoff_from(args: dict[str, Any]) -> dict[str, Any]:
         prior = args["prior_agent"]
         try:
@@ -364,6 +410,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
             "artifact_paths": list,
         },
     )
+    @_guard("summary")
     async def write_handoff(args: dict[str, Any]) -> dict[str, Any]:
         if cfg.next_agent is None:
             return _err("This agent (PM) is the final stage. There is nobody to hand off to.")
@@ -628,6 +675,7 @@ async def reflect(cfg: AgentConfig, project_id: str) -> dict[str, Any]:
         "not facts specific to this one.",
         {"lesson": str},
     )
+    @_guard("lesson")
     async def append_lesson(args: dict[str, Any]) -> dict[str, Any]:
         try:
             return _ok(memory_tools.append_lesson(cfg.name, args["lesson"], project_id=project_id))
