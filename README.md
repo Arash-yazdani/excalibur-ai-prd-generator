@@ -19,7 +19,7 @@
 
 ## What it is
 
-Paste in whatever you have, a deck export, an email thread, a one-pager, a transcript, and a pipeline of AI agents turns it into a structured **57-question PRD**. Each agent owns one phase, reads the previous agent's handoff, fills in its slice of the document, and passes a clean packet to the next. A final PM agent reviews the whole thing and produces a consolidated `final-prd.md`.
+Paste in whatever you have (a deck export, an email thread, a one-pager, a transcript) and a pipeline of AI agents turns it into a structured **57-question PRD**. Each agent owns one phase, reads the previous agent's handoff, fills in its slice of the document, and passes a clean packet to the next. A final PM agent reviews the whole thing and produces a consolidated `final-prd.md`.
 
 ```
 Intake → Discovery → Design → Develop → Deploy → PM Review
@@ -59,7 +59,7 @@ Set **one** of these. EXCALIBUR detects which you configured and validates it be
 | You have | Set | Notes |
 |---|---|---|
 | An Anthropic API key | `ANTHROPIC_API_KEY` | Billed per token to your Console account |
-| A Claude subscription | *(nothing)*, run `claude setup-token` once | Usage counts against your plan, not a bill |
+| A Claude subscription | *(nothing)*: run `claude setup-token` once | Usage counts against your plan, not a bill |
 | An LLM gateway | `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` | LiteLLM, Portkey, or your org's proxy |
 | Amazon Bedrock | `CLAUDE_CODE_USE_BEDROCK=1` + AWS credentials | |
 | Google Cloud | `CLAUDE_CODE_USE_VERTEX=1` + `CLOUD_ML_REGION` + gcloud ADC | |
@@ -87,7 +87,7 @@ Nothing here blocks you from trying: point `ANTHROPIC_BASE_URL` at an Anthropic-
 - Tool-calling fidelity varies by model. The agents call up to 8 typed tools per turn and recover poorly from mis-formatted calls.
 - Anthropic-specific request fields (`thinking`, `effort`) are rejected outright by some shims.
 
-If you want this genuinely model-agnostic, the honest change is to replace the agent loop rather than proxy it, everything in `tools/` is already provider-neutral Python, and only two blocks in `agents/base.py` touch a model. PRs welcome.
+If you want this genuinely model-agnostic, the honest change is to replace the agent loop rather than proxy it. Everything in `tools/` is already provider-neutral Python, and only two blocks in `agents/base.py` touch a model. PRs welcome.
 
 </details>
 
@@ -115,7 +115,7 @@ python server.py                     # → http://localhost:4500
 
 ### Web UI
 1. Open **http://localhost:4500**.
-2. Create a project and paste your freeform product context. Not sure what that should look like? [`examples/sample-intake.md`](examples/sample-intake.md) is a realistic one, messy notes and an email thread, not a filled-in form.
+2. Create a project and paste your freeform product context. Not sure what that should look like? [`examples/sample-intake.md`](examples/sample-intake.md) is a realistic one: messy notes and an email thread, not a filled-in form.
 3. Click **Run**: watch the agents work through the pipeline in real time.
 4. Read the generated PRD, handoffs, and artifacts; export the final PRD.
 
