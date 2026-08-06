@@ -123,7 +123,7 @@ def render_section_for_agent(project: dict[str, Any], section: dict[str, Any]) -
     lines = [f"## {section['title']}", f"*{section['subtitle']}*", ""]
     for q in section["questions"]:
         response, status = get_response(project, q["id"])
-        lines.append(f"### {q['id']} — {q['topic']} ({q['theme']})")
+        lines.append(f"### {q['id']}, {q['topic']} ({q['theme']})")
         lines.append(f"**Question:** {q['q']}")
         lines.append(f"**Tip:** {q['tip']}")
         lines.append(f"**Status:** {status}")

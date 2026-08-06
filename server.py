@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""EXCALIBUR — unified FastAPI server.
+"""EXCALIBUR, unified FastAPI server.
 
 One process, one port (default :4500), three responsibilities:
   1. Project CRUD
@@ -35,7 +35,7 @@ from sse_starlette.sse import EventSourceResponse
 
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
-# Strip the CLAUDE_CODE_* host-IPC vars before anything spawns the CLI — they make
+# Strip the CLAUDE_CODE_* host-IPC vars before anything spawns the CLI, they make
 # it expect IPC auth from a host that isn't listening → 401. The user's credential
 # (API key, gateway token, cloud-provider switch, or subscription OAuth) is left
 # untouched; tools/auth_preflight detects which one is configured.
@@ -69,7 +69,7 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="EXCALIBUR", version="0.3.0")
 
 # NOTE: deliberately no CORS middleware. The API is unauthenticated, so binding to
-# 127.0.0.1 is the only thing keeping it private — and that stops the network, not
+# 127.0.0.1 is the only thing keeping it private, and that stops the network, not
 # the browser. With `Access-Control-Allow-Origin: *`, any page the user happens to
 # visit while the server is running could read every PRD, delete projects, and start
 # runs. The SPA is same-origin and needs no CORS headers.
@@ -82,7 +82,7 @@ app = FastAPI(title="EXCALIBUR", version="0.3.0")
 SAFE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 # Handoffs and artifacts are written by the agents, and their content derives from
-# whatever the user pasted into intake — so it is untrusted. Python-Markdown passes
+# whatever the user pasted into intake, so it is untrusted. Python-Markdown passes
 # raw HTML through (safe_mode was removed in 3.0) and the SPA assigns the result to
 # innerHTML, which would give a prompt-injected `<script>` execution in the app's
 # own origin against an unauthenticated API. Sanitize on the way out.
@@ -130,7 +130,7 @@ def _project_summary(pid: str, framework: dict[str, Any]) -> dict[str, Any]:
         "meta": data.get("meta", {}),
         "stats": _calc_stats(data, framework),
         # Surface run state so the projects list shows running/complete/paused
-        # badges — the SPA already reads p._status.state per card.
+        # badges, the SPA already reads p._status.state per card.
         # ponytail: re-reads runs.jsonl per project; fine at single-user scale,
         # batch into one read if a user ever accumulates hundreds of projects.
         "_status": _run_status(pid),
@@ -258,7 +258,7 @@ def _run_status(pid: str) -> dict[str, Any]:
 # Static + root routes
 # ----------------------------------------------------------------------------
 
-# Mount static files — served at /static/*
+# Mount static files, served at /static/*
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -268,7 +268,7 @@ async def root() -> FileResponse:
     index = STATIC_DIR / "index.html"
     if not index.exists():
         return HTMLResponse(
-            "<h1>EXCALIBUR</h1><p>SPA not built yet — see /docs for the API.</p>",
+            "<h1>EXCALIBUR</h1><p>SPA not built yet, see /docs for the API.</p>",
             status_code=503,
         )
     return FileResponse(index)
@@ -343,7 +343,7 @@ async def save_project(pid: str, body: dict[str, Any]) -> dict[str, Any]:
     if _is_run_active(pid):
         raise HTTPException(
             409,
-            "Pipeline running — project is read-only. Pause/cancel the run first.",
+            "Pipeline running, project is read-only. Pause/cancel the run first.",
         )
     project = {
         "version": 1,
@@ -358,11 +358,11 @@ async def save_project(pid: str, body: dict[str, Any]) -> dict[str, Any]:
 async def patch_project(pid: str, body: dict[str, Any]) -> dict[str, Any]:
     """Partial update. Used by the UI to update meta + intake_text
     without sending the full project body. Body shape:
-      {"meta": {"name": "...", "intake_text": "..."}}  — any subset"""
+      {"meta": {"name": "...", "intake_text": "..."}}, any subset"""
     if not _safe_id(pid):
         raise HTTPException(400, "Invalid project id")
     if _is_run_active(pid):
-        raise HTTPException(409, "Pipeline running — project is read-only.")
+        raise HTTPException(409, "Pipeline running, project is read-only.")
     p = project_path(pid)
     if not p.exists():
         raise HTTPException(404, f"Project not found: {pid}")
@@ -409,7 +409,7 @@ def _spawn_orchestrator(pid: str, *, resume: bool = False) -> Path:
         pid,
     ]
     log_fh = log_path.open("ab", buffering=0)
-    proc = subprocess.Popen(  # noqa: S603 — we control all args
+    proc = subprocess.Popen(  # noqa: S603, we control all args
         cmd,
         cwd=str(BASE_DIR),
         stdout=log_fh,

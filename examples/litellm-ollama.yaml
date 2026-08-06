@@ -1,6 +1,6 @@
 # Free credential-path check against a local Ollama model.
 #
-# WHAT THIS IS GOOD FOR: proving the gateway path end to end — credential
+# WHAT THIS IS GOOD FOR: proving the gateway path end to end, credential
 # detection, the CLI spawn, Anthropic-format routing through LiteLLM, and a real
 # model reply. If this works, ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN are
 # wired correctly.
@@ -8,13 +8,13 @@
 # TIMING, measured on an M-series MacBook Air with qwen3.5-agent (6.6 GB):
 # the first call pays ~5m30s to load the model into memory; once warm, a
 # one-turn probe is ~11s. Real agent turns carry ~6K of system prompt plus
-# tool results, so they run slower than that — budget generously and keep
+# tool results, so they run slower than that, budget generously and keep
 # Ollama warm between runs.
 #
 # WHAT IS UNVALIDATED: whether a local model drives the pipeline correctly.
 # The consultant agents call 8 typed tools per turn and recover poorly from
 # mis-formatted calls. That is the real risk here, not speed. To validate the
-# pipeline itself, use a hosted model — `claude-haiku-4-5` costs cents for
+# pipeline itself, use a hosted model, `claude-haiku-4-5` costs cents for
 # `only intake`.
 #
 # This is also not a supported configuration; see the README's "Can I run this
@@ -33,7 +33,7 @@
 #   export EXCALIBUR_THINKING=none        # ...and its adaptive-thinking param
 #   export EXCALIBUR_PROBE_TIMEOUT=600    # the 90s default is far too short here
 #
-# Pick an agent-tuned model — the consultant agents call 8 typed tools per turn
+# Pick an agent-tuned model, the consultant agents call 8 typed tools per turn
 # and general chat models mis-format them.
 
 model_list:

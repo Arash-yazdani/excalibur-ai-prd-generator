@@ -1,11 +1,11 @@
-"""AI PM Manager — final review + consolidated final-prd.md.
+"""AI PM Manager, final review + consolidated final-prd.md.
 
 Distinct from the other four agents in that:
 - It owns no specific question range (`owned_question_ids = []`).
 - It can write to any question (the base agent's `write_answer` tool grants
   write access for `cfg.name == "pm"`).
 - It produces the project's terminal artifact.
-- It has no `next_agent` — there is no handoff after PM.
+- It has no `next_agent`: there is no handoff after PM.
 """
 from __future__ import annotations
 

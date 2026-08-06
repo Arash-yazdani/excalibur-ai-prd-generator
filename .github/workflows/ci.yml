@@ -28,6 +28,6 @@ jobs:
         run: ruff check .
 
       - name: Test
-        # No network and no credential here — the suite covers the deterministic
+        # No network and no credential here, the suite covers the deterministic
         # surface only (framework invariants, credential detection, IO safety).
         run: pytest -q

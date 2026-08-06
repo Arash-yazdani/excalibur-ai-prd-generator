@@ -5,7 +5,7 @@
 **Why**
 
 <!-- What problem this solves. If it's a prompt change, say what the output looked
-     like before and after — prompt edits are hard to review from the diff alone. -->
+     like before and after, prompt edits are hard to review from the diff alone. -->
 
 **Checklist**
 

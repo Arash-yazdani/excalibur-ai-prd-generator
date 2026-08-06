@@ -2,7 +2,7 @@
 
 ## Threat model
 
-EXCALIBUR is a **local, single-user tool**. The server binds to `127.0.0.1:4500` and the API is unauthenticated — that binding is the entire access control. Consequences worth understanding before you run it:
+EXCALIBUR is a **local, single-user tool**. The server binds to `127.0.0.1:4500` and the API is unauthenticated, that binding is the entire access control. Consequences worth understanding before you run it:
 
 - **Don't expose the port.** Anything that can reach `:4500` can read every PRD, delete projects, and start runs against your credential. Don't port-forward it, don't bind it to `0.0.0.0`, and be careful on shared machines.
 - **There is deliberately no CORS middleware.** A permissive `Access-Control-Allow-Origin` would let any web page you happen to visit read the API's responses while the server is running. The SPA is same-origin and needs no CORS headers.
@@ -15,10 +15,10 @@ EXCALIBUR never stores, logs, or transmits your credential. It reads whichever e
 
 One exception worth knowing about: on macOS, in **subscription mode only**, `tools/auth_preflight.py` copies your OAuth token from the login Keychain to `~/.claude/.credentials.json` (mode `600`) because SDK subprocesses can't reach the Keychain. This moves a Keychain-protected secret onto disk. It does not happen in API-key, gateway, or cloud-provider mode.
 
-Keep `.env` out of version control — it is in `.gitignore`, and the credential rows in `.env.example` are commented out.
+Keep `.env` out of version control, it is in `.gitignore`, and the credential rows in `.env.example` are commented out.
 
 ## Reporting a vulnerability
 
 Open a [GitHub issue](https://github.com/Arash-yazdani/excalibur-ai-prd-generator/issues) for anything low-risk. For something that shouldn't be public, use GitHub's **private vulnerability reporting** on the Security tab instead. Please include reproduction steps and what an attacker would gain.
 
-Since this is a local tool with no server component, there is no deployed instance to patch — fixes ship as a normal release and users update by pulling.
+Since this is a local tool with no server component, there is no deployed instance to patch, fixes ship as a normal release and users update by pulling.

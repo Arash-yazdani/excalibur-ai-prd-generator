@@ -1,6 +1,6 @@
 """The framework's central invariant: question ownership.
 
-The mapping "q17-q26 belongs to Design" lives in three unconnected places —
+The mapping "q17-q26 belongs to Design" lives in three unconnected places
 framework/questions.json's phase fields, each agent's owned_question_ids range,
 and prose in prompts/*.md. Inserting a question in the middle silently
 desynchronizes all three, and the failure is invisible: the pipeline runs, the

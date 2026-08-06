@@ -5,7 +5,7 @@ The reflection step at the end of each run prompts the agent to append 1-3
 concise lessons. Next run, those lessons are loaded and injected into the
 agent's context (cached as part of the stable prefix).
 
-Plain markdown — no embeddings, no vector store. Easy to inspect, hand-edit,
+Plain markdown, no embeddings, no vector store. Easy to inspect, hand-edit,
 or roll back via git.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ def read_lessons(agent: str) -> str:
     MEMORY_DIR.mkdir(parents=True, exist_ok=True)
     path = _lessons_path(agent)
     if not path.exists() or not path.read_text().strip():
-        return "_(no lessons yet — this is your first project)_"
+        return "_(no lessons yet, this is your first project)_"
     return path.read_text()
 
 
@@ -37,12 +37,12 @@ def append_lesson(agent: str, lesson: str, project_id: str | None = None) -> str
     MEMORY_DIR.mkdir(parents=True, exist_ok=True)
     path = _lessons_path(agent)
     if not path.exists():
-        path.write_text(f"# Lessons — {agent}\n\n_Append-only. Each entry is one bullet, ≤ 50 words._\n\n")
+        path.write_text(f"# Lessons, {agent}\n\n_Append-only. Each entry is one bullet, ≤ 50 words._\n\n")
     today = _dt.date.today().isoformat()
     suffix = f" _(from project: {project_id})_" if project_id else ""
     cleaned = lesson.strip().replace("\n", " ")
     if len(cleaned) > 800:
         cleaned = cleaned[:800] + "…"
     with path.open("a") as f:
-        f.write(f"- **{today}**{suffix} — {cleaned}\n")
+        f.write(f"- **{today}**{suffix}, {cleaned}\n")
     return f"OK. Appended a {len(cleaned)}-char lesson to {path.name}."

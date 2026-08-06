@@ -10,7 +10,7 @@ Average team is 6-12 agents. They live in Zendesk all day.
 
 The problem Priya keeps hearing on calls: agents spend most of their time
 writing the same five replies over and over, but every reply still needs
-context from the customer's account — plan tier, recent tickets, whether
+context from the customer's account, plan tier, recent tickets, whether
 they've churned before. So canned responses don't actually help. Agents
 copy-paste a template and then spend 4-5 minutes hunting through three tabs
 to personalize it.

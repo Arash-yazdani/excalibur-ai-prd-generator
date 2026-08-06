@@ -5,7 +5,7 @@ from .paths import ensure_project_dirs, project_artifacts_dir
 
 
 def _check_name(name: str) -> None:
-    """Artifact names come from the model, so validate on read as well as write —
+    """Artifact names come from the model, so validate on read as well as write
     otherwise `read_artifact("../../../etc/hosts")` resolves outside the project."""
     if not name.replace("-", "").replace("_", "").isalnum():
         raise ValueError(

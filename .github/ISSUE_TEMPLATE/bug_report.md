@@ -15,7 +15,7 @@ labels: bug
 
 **Which credential are you using?**
 
-<!-- Paste the output of `python tools/auth_preflight.py` — it names the detected
+<!-- Paste the output of `python tools/auth_preflight.py`: it names the detected
      provider and never prints the credential itself. -->
 
 ```

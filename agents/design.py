@@ -1,4 +1,4 @@
-"""Design Consultant — completes q17–q26 and produces design-artifact.md."""
+"""Design Consultant, completes q17–q26 and produces design-artifact.md."""
 from __future__ import annotations
 
 from .base import AgentConfig

@@ -37,7 +37,7 @@ from urllib.parse import urlparse
 
 # Claude Desktop injects these into shells it spawns to say "expect IPC-mediated auth
 # from your parent host". Our CLI subprocess runs outside that IPC scope, so the
-# handshake finds no listener and 401s mid-pipeline. Always strip them — this is a
+# handshake finds no listener and 401s mid-pipeline. Always strip them, this is a
 # host-environment bug fix, unrelated to which credential the user chose.
 HOST_IPC_VARS = (
     "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST",
@@ -64,7 +64,7 @@ _CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 
 _SETUP_HINT = (
     "Set one of ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL, or a "
-    "CLAUDE_CODE_USE_* provider switch — or run `claude setup-token` to use a Claude "
+    "CLAUDE_CODE_USE_* provider switch, or run `claude setup-token` to use a Claude "
     "subscription. See the Providers table in the README."
 )
 
@@ -130,7 +130,7 @@ def _parse_auth_status(stdout: str) -> dict:
 
 
 def check_auth_status(cli: str | None = None) -> tuple[bool, str, dict]:
-    """Run `claude auth status`. Subscription-OAuth mode only — other modes have no
+    """Run `claude auth status`. Subscription-OAuth mode only, other modes have no
     login state to report and would fail this check while working fine."""
     cli = cli or shutil.which("claude")
     if not cli:
@@ -177,7 +177,7 @@ def _first_real_error(text: str) -> str | None:
     """Pick the error out of CLI output, ignoring advisory lines.
 
     The CLI prints a `⚠ claude.ai connectors are disabled...` notice whenever a
-    credential env var is set — which is always true in every non-subscription
+    credential env var is set, which is always true in every non-subscription
     mode. Taking the last line blindly reports that warning as the failure and
     hides the real one.
     """
@@ -198,7 +198,7 @@ def probe_timeout() -> int:
 
 
 def probe_api(cli: str | None = None, *, timeout: int | None = None, mode_label: str = "") -> tuple[bool, str]:
-    """Minimal real API call — the only check that proves the credential works."""
+    """Minimal real API call, the only check that proves the credential works."""
     timeout = timeout if timeout is not None else probe_timeout()
     cli = cli or shutil.which("claude")
     if not cli:
@@ -236,7 +236,7 @@ def probe_api(cli: str | None = None, *, timeout: int | None = None, mode_label:
     snippet = _first_real_error(combined) or f"exit {proc.returncode}"
     hint = ""
     if model:
-        hint = f" (probing model {model!r} — confirm your provider serves that name)"
+        hint = f" (probing model {model!r}, confirm your provider serves that name)"
     return False, f"API probe failed{hint}: {snippet}"
 
 
@@ -297,7 +297,7 @@ def check_auth_ready(*, probe_api_call: bool = True) -> tuple[bool, str]:
 
 def main() -> int:
     # Run standalone, this is the tool users are told to reach for when auth is
-    # confusing — so it has to see the same environment the app does. server.py
+    # confusing, so it has to see the same environment the app does. server.py
     # and orchestrator.py load .env themselves before importing anything; without
     # the same call here, a correctly configured .env reports "no credential
     # found", which is the precise false negative this script exists to prevent.

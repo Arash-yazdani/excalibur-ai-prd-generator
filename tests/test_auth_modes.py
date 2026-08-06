@@ -1,4 +1,4 @@
-"""Credential detection — the thing that decides whether a user can run this at all.
+"""Credential detection, the thing that decides whether a user can run this at all.
 
 The point of these tests is that no credential is privileged: every supported
 provider is detected, and subscription OAuth is the fallback rather than the
@@ -53,7 +53,7 @@ def test_empty_string_is_not_a_credential(monkeypatch):
 
 
 def test_strip_removes_host_ipc_vars_but_never_credentials(monkeypatch):
-    """The Desktop IPC fix must not take the user's credential with it — this is
+    """The Desktop IPC fix must not take the user's credential with it, this is
     the regression that made the tool subscription-only."""
     for var in HOST_IPC_VARS:
         monkeypatch.setenv(var, "1")
@@ -92,7 +92,7 @@ class TestBaseUrlReachability:
 
         assert not ok
         assert "nothing is listening" in why
-        assert elapsed < 3.0, f"took {elapsed:.1f}s — should refuse immediately"
+        assert elapsed < 3.0, f"took {elapsed:.1f}s, should refuse immediately"
 
     def test_reachable_gateway_passes(self, monkeypatch):
         import socket as _socket

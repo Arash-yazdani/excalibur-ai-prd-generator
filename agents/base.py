@@ -1,8 +1,8 @@
-"""ConsultantAgent — base class for all six pipeline agents.
+"""ConsultantAgent, base class for all six pipeline agents.
 
 Each agent runs as a `ClaudeSDKClient` session that invokes the bundled
-Claude Code CLI. Auth and model routing are whatever the environment provides —
-API key, gateway, cloud provider, or subscription — resolved by the CLI itself.
+Claude Code CLI. Auth and model routing are whatever the environment provides
+API key, gateway, cloud provider, or subscription, resolved by the CLI itself.
 See tools/auth_preflight.py.
 
 Per agent:
@@ -45,7 +45,7 @@ from tools import runs as runs_log
 from tools.auth_preflight import resolve_model
 from tools.paths import BASE_DIR, PROMPTS_DIR, pause_flag_path
 
-# Model is overridable without touching code — set EXCALIBUR_MODEL (or the standard
+# Model is overridable without touching code, set EXCALIBUR_MODEL (or the standard
 # ANTHROPIC_MODEL) in .env. Deliberately no hardcoded default: an ID that is valid on
 # the Anthropic API is wrong on Bedrock (inference profile ARN), Vertex (version name),
 # and Foundry (deployment name). When unset we omit `model` entirely and let the CLI
@@ -60,8 +60,8 @@ def _opt_out(var: str, default: str) -> str | None:
 
 # `thinking` and `effort` are not universally supported: Haiku 4.5 and older models
 # reject `effort`, and most gateway shims reject `thinking: adaptive`. Both are
-# omitted from the request when set to none/off, so cheaper models — and anything
-# behind a proxy — can still drive the pipeline.
+# omitted from the request when set to none/off, so cheaper models, and anything
+# behind a proxy, can still drive the pipeline.
 #   EXCALIBUR_EFFORT=none EXCALIBUR_THINKING=none
 DEFAULT_EFFORT = _opt_out("EXCALIBUR_EFFORT", "high")
 # Reflection is a one-sentence task; it never needs the main loop's depth.
@@ -88,7 +88,7 @@ class AgentConfig:
     next_agent: str | None
     artifact_name: str | None = None
     # Built-in Claude Code tool names (e.g. "WebSearch") to allowlist for this
-    # agent. Use sparingly — added as bare names to ClaudeAgentOptions.allowed_tools.
+    # agent. Use sparingly, added as bare names to ClaudeAgentOptions.allowed_tools.
     extra_builtin_tools: list[str] = field(default_factory=list)
 
 
@@ -162,7 +162,7 @@ def _build_intake_tools_server(project_id: str, cfg: AgentConfig):
     @tool(
         "read_intake_text",
         "Read the freeform context the human pasted into this project. "
-        "This is your only structured input — everything you write to q1-q7 should be grounded in it.",
+        "This is your only structured input, everything you write to q1-q7 should be grounded in it.",
         {},
     )
     async def read_intake_text(args: dict[str, Any]) -> dict[str, Any]:
@@ -172,7 +172,7 @@ def _build_intake_tools_server(project_id: str, cfg: AgentConfig):
             return _err(str(e))
         if not text.strip():
             return _err(
-                "Intake text is empty. The human hasn't pasted any context yet — "
+                "Intake text is empty. The human hasn't pasted any context yet, "
                 "you cannot do meaningful intake. Stop and report this in your closing message."
             )
         return _ok(f"# Freeform intake from human ({len(text)} chars)\n\n{text}")
@@ -246,7 +246,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
             return _err(str(e))
         response, status = qio.get_response(project, qid)
         out = [
-            f"## {qid} — {q['topic']} ({q['theme']})",
+            f"## {qid}, {q['topic']} ({q['theme']})",
             f"**Section:** {section['title']} (in phase: {section['phase']})",
             f"**Question:** {q['q']}",
             f"**Tip:** {q['tip']}",
@@ -396,7 +396,7 @@ def _build_consultant_tools_server(project_id: str, cfg: AgentConfig):
     server = create_sdk_mcp_server(name="prd_tools", version="1.0.0", tools=tools_list)
     # Tool naming: each MCP tool exposed under mcp__<dict-key>__<tool-name>.
     # The decorator stores its name on the wrapped function via .name (or the
-    # underlying SdkMcpTool object). We pull it pragmatically — the inner name
+    # underlying SdkMcpTool object). We pull it pragmatically, the inner name
     # we passed to @tool above is the source of truth.
     tool_names = [
         "read_question",
@@ -433,7 +433,7 @@ def _build_initial_user_message(project_id: str, cfg: AgentConfig) -> str:
             "Read the freeform intake text the human pasted (call `read_intake_text`), "
             "optionally update meta fields you can extract from it (`set_meta`), and "
             "structure the input into q1-q7 by calling `write_answer` for each. "
-            "Mark genuine gaps as `needs-review`. Do NOT call `write_handoff` — "
+            "Mark genuine gaps as `needs-review`. Do NOT call `write_handoff`: "
             "Discovery picks up directly from your q1-q7 answers."
         )
     elif cfg.owned_question_ids:
@@ -445,7 +445,7 @@ def _build_initial_user_message(project_id: str, cfg: AgentConfig) -> str:
         )
     else:
         parts.append(
-            "You are the AI PM Manager. You don't own any specific questions — instead, "
+            "You are the AI PM Manager. You don't own any specific questions, instead, "
             "you review the entire PRD, sense-check it, fix inconsistencies via "
             "`write_answer`, and produce the final consolidated `final-prd` artifact."
         )
@@ -491,7 +491,7 @@ def _build_initial_user_message(project_id: str, cfg: AgentConfig) -> str:
 
 def check_pause_flag(project_id: str) -> None:
     """Raise PipelinePaused if the orchestrator's pause flag exists for this project.
-    Called from the orchestrator loop between agents (NOT inside run_agent — once
+    Called from the orchestrator loop between agents (NOT inside run_agent, once
     an agent has started, it runs to completion). Soft pause means: finish the
     current agent, then exit cleanly before the next one starts."""
     if pause_flag_path(project_id).exists():
@@ -567,8 +567,8 @@ async def run_agent(
                 last_stop_reason = msg.stop_reason
                 last_cost = msg.total_cost_usd
                 # ResultMessage carries the run's authoritative totals. Summing
-                # per-AssistantMessage usage undercounts badly — a run that wrote
-                # 4K characters reported 160 in / 29 out — because most messages
+                # per-AssistantMessage usage undercounts badly, a run that wrote
+                # 4K characters reported 160 in / 29 out, because most messages
                 # in the CLI harness don't carry usage at all. Prefer this.
                 if msg.usage:
                     for key in usage:
@@ -592,7 +592,7 @@ async def run_agent(
     )
 
     # Abort hard if the agent produced zero tokens. This catches silent auth
-    # failure — without it, the pipeline marches through dead handoffs and
+    # failure, without it, the pipeline marches through dead handoffs and
     # produces a final PRD that's actually empty.
     if usage["output_tokens"] == 0 and usage["input_tokens"] == 0:
         raise RuntimeError(
@@ -601,12 +601,12 @@ async def run_agent(
             f"credential is detected and whether it works, then restart the server."
         )
 
-    # max_turns exhaustion is not an error to the SDK — the session just stops. Left
+    # max_turns exhaustion is not an error to the SDK, the session just stops. Left
     # unchecked, the agent logs `agent_complete` with half its questions unanswered
     # and the pipeline advances. Surface it; the orchestrator asserts completeness.
     if last_stop_reason == "max_turns":
         print(
-            f"\n[{cfg.name}] !! hit the {MAX_TURNS}-turn limit — its questions may be "
+            f"\n[{cfg.name}] !! hit the {MAX_TURNS}-turn limit, its questions may be "
             f"incomplete. Re-run this agent with `orchestrator.py only {cfg.name} <pid>`."
         )
 
@@ -624,7 +624,7 @@ async def reflect(cfg: AgentConfig, project_id: str) -> dict[str, Any]:
     @tool(
         "append_lesson",
         "Append one concise lesson (≤ 50 words) to your cross-project memory. "
-        "The lesson should be project-agnostic — actionable on any future project, "
+        "The lesson should be project-agnostic, actionable on any future project, "
         "not facts specific to this one.",
         {"lesson": str},
     )
@@ -642,7 +642,7 @@ async def reflect(cfg: AgentConfig, project_id: str) -> dict[str, Any]:
         f"Project meta: {project.get('meta', {})}\n\n"
         f"Reflect on what you learned. Append 1–3 concise lessons (≤ 50 words each) "
         f"to your cross-project memory via `append_lesson`. Each lesson should be "
-        f"actionable and project-agnostic — heuristics you'd want to remember on "
+        f"actionable and project-agnostic, heuristics you'd want to remember on "
         f"your next project of any kind, not facts specific to this one. "
         f"After appending the lessons, end your turn."
     )

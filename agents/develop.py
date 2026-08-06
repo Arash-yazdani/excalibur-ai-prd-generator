@@ -1,4 +1,4 @@
-"""Develop Consultant — completes q27–q43, validates each subsection, produces develop-artifact.md.
+"""Develop Consultant, completes q27–q43, validates each subsection, produces develop-artifact.md.
 
 Adds Claude Code's built-in `WebSearch` tool so the agent can validate the
 model marketplace at q27 (Model Selection). Per the user requirement that

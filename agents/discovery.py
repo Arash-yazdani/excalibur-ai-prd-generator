@@ -1,4 +1,4 @@
-"""Discovery Consultant — completes q8–q16."""
+"""Discovery Consultant, completes q8–q16."""
 from __future__ import annotations
 
 from .base import AgentConfig

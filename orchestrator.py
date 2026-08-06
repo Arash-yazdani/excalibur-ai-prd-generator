@@ -16,7 +16,7 @@ Subcommands:
 Pipeline order: intake → discovery → design → develop → deploy → pm → reflect-all
 
 Auth: invokes the bundled Claude Code CLI from claude-agent-sdk, which uses
-whichever credential your environment provides — an Anthropic API key, a gateway
+whichever credential your environment provides, an Anthropic API key, a gateway
 token, a cloud-provider switch (Bedrock/Vertex/Foundry), or a Claude subscription.
 See tools/auth_preflight.py and the Providers table in the README.
 """
@@ -32,7 +32,7 @@ from dotenv import load_dotenv
 # Load .env (PROJECTS_DIR override etc.) from this dir.
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
-# Strip the CLAUDE_CODE_* host-IPC vars before importing the agent layer — they
+# Strip the CLAUDE_CODE_* host-IPC vars before importing the agent layer, they
 # make the CLI expect IPC auth from Claude Desktop and 401 when spawned standalone.
 # The user's credential is left untouched; tools/auth_preflight detects it.
 from tools.auth_preflight import strip_host_ipc_env  # noqa: E402
@@ -58,7 +58,7 @@ from tools.auth_preflight import check_auth_ready as _check_auth_ready  # noqa: 
 from tools.paths import ensure_project_dirs, pause_flag_path  # noqa: E402
 
 # Pipeline: intake first, then the five consultants. These imports are NOT optional
-# — a swallowed ImportError here silently drops an agent, and the run still reports
+#, a swallowed ImportError here silently drops an agent, and the run still reports
 # success while producing a PRD with that agent's whole question range left blank.
 PIPELINE: list[AgentConfig] = [INTAKE, DISCOVERY, DESIGN, DEVELOP, DEPLOY, PM]
 
@@ -74,10 +74,10 @@ def _check_intake_ready(project_id: str) -> tuple[bool, str]:
     )
     has_intake_text = bool(project.get("meta", {}).get("intake_text", "").strip())
     if q1_q7_complete:
-        return True, "q1-q7 already filled — intake will skip"
+        return True, "q1-q7 already filled, intake will skip"
     if has_intake_text:
-        return True, "intake_text present — intake agent will populate q1-q7"
-    return False, "no intake_text and q1-q7 not filled — paste context in the UI first"
+        return True, "intake_text present, intake agent will populate q1-q7"
+    return False, "no intake_text and q1-q7 not filled, paste context in the UI first"
 
 
 def _unanswered(agent: AgentConfig, project_id: str) -> list[str]:
@@ -85,7 +85,7 @@ def _unanswered(agent: AgentConfig, project_id: str) -> list[str]:
 
     `needs-review` does NOT count. The prompts explicitly instruct agents to use
     it when they've made an assumption a human should check, so it is a correct
-    terminal state with real content behind it — treating it as a failure would
+    terminal state with real content behind it, treating it as a failure would
     cry wolf on a good run and make resume re-do work that was already done.
     """
     project = qio.load_project(project_id)
@@ -172,7 +172,7 @@ async def cmd_run(project_id: str, *, resume: bool = False) -> int:
         for agent in PIPELINE:
             check_pause_flag(project_id)  # exits cleanly between agents if flag set
             if resume and _agent_done(agent, project_id):
-                print(f"\n[skip] {agent.name} — work already complete (resume mode).")
+                print(f"\n[skip] {agent.name}, work already complete (resume mode).")
                 continue
             try:
                 await _run_agent_with_retry(agent, project_id)
@@ -197,7 +197,7 @@ async def cmd_run(project_id: str, *, resume: bool = False) -> int:
             if flagged:
                 print(
                     f"  {agent.name}: {len(flagged)} answer(s) marked needs-review "
-                    f"({', '.join(flagged)}) — answered, but worth your eyes."
+                    f"({', '.join(flagged)}), answered, but worth your eyes."
                 )
     except PipelinePaused:
         runs_log.log_event(project_id, "orchestrator", "pipeline_paused")
@@ -228,7 +228,7 @@ async def cmd_run(project_id: str, *, resume: bool = False) -> int:
     print(f"  - Project JSON: {qio.project_path(project_id)}")
     print(f"  - Run log: {runs_log.RUNS_LOG}")
     # total_cost_usd is None on subscription auth (usage counts against the plan, not
-    # a bill) and a real charge on metered credentials — so don't call it free.
+    # a bill) and a real charge on metered credentials, so don't call it free.
     cost_note = "not billed per-token on a subscription" if total_cost == 0 else "billed to your provider"
     print(f"  - API cost: ${total_cost:.2f}  ({cost_note})")
     print(f"  - Token usage: {total_in:,} input / {total_out:,} output")
@@ -238,7 +238,7 @@ async def cmd_run(project_id: str, *, resume: bool = False) -> int:
 async def cmd_reflect(project_id: str) -> int:
     for agent in PIPELINE:
         if not _agent_done(agent, project_id) and agent.owned_question_ids:
-            print(f"  [skip] {agent.name} — its questions aren't all complete yet.")
+            print(f"  [skip] {agent.name}, its questions aren't all complete yet.")
             continue
         try:
             await reflect(agent, project_id)
@@ -278,7 +278,7 @@ def cmd_pause(project_id: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="EXCALIBUR — six-agent pipeline orchestrator")
+    parser = argparse.ArgumentParser(description="EXCALIBUR, six-agent pipeline orchestrator")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_run = sub.add_parser("run", help="Run the full pipeline")

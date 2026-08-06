@@ -1,4 +1,4 @@
-"""Deploy Consultant — completes q44–q57."""
+"""Deploy Consultant, completes q44–q57."""
 from __future__ import annotations
 
 from .base import AgentConfig
